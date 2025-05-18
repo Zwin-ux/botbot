@@ -184,7 +184,10 @@ class StandupHandler {
         });
         
         if (!config) {
-          return message.reply('No active standups found. Please set one up first with `!standup setup`.');
+          // Friendly suggestion with setup button
+          const { getSetupSuggestion } = require('../features/setupSuggest');
+          const { embed, row } = getSetupSuggestion('standup');
+          return message.reply({ embeds: [embed], components: [row] });
         }
         
         configId = config.id;

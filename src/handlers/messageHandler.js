@@ -127,9 +127,13 @@ class MessageHandler {
           const reminderId = doneMatch[1];
           try {
             await this.reminderManager.markReminderDone(reminderId, userId);
-            return msg.reply(`✅ Reminder #${reminderId} marked as done! Nice work!`);
+            // Confetti/celebratory feedback for first-time reminder completion
+          return msg.reply('🎉 Reminder marked as done! Nice work!');
           } catch (error) {
-            return msg.reply(`Sorry, I couldn't mark that reminder as done. Either it doesn't exist or it's not yours.`);
+            // Friendly suggestion for reminders
+          const { getSetupSuggestion } = require('../features/setupSuggest');
+          const { embed, row } = getSetupSuggestion('reminder');
+          return msg.reply({ content: 'I couldn’t find that reminder. Want to create a new one?', embeds: [embed], components: [row] });
           }
         }
         
@@ -141,7 +145,10 @@ class MessageHandler {
             await this.reminderManager.deleteReminder(reminderId, userId);
             return msg.reply(`🗑️ Reminder #${reminderId} has been deleted.`);
           } catch (error) {
-            return msg.reply(`Sorry, I couldn't delete that reminder. Either it doesn't exist or it's not yours.`);
+            // Friendly suggestion for reminders
+          const { getSetupSuggestion } = require('../features/setupSuggest');
+          const { embed, row } = getSetupSuggestion('reminder');
+          return msg.reply({ content: 'I couldn’t find that reminder. Want to create a new one?', embeds: [embed], components: [row] });
           }
         }
         
@@ -259,7 +266,8 @@ class MessageHandler {
       categoryId
     );
     
-    return msg.reply(this.createReminderEmbed(reminder));
+    // Confetti/celebratory feedback for first reminder creation
+    return msg.reply('🎊 Reminder created! I’ll remind you when it’s time.');
   }
 
   /**
@@ -382,7 +390,8 @@ class MessageHandler {
       categoryId
     );
     
-    return msg.reply(this.createReminderEmbed(reminder));
+    // Confetti/celebratory feedback for first reminder creation
+    return msg.reply('🎊 Reminder created! I’ll remind you when it’s time.');
   }
 
   /**

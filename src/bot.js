@@ -29,6 +29,11 @@ const CategoryHandler = require('./handlers/categoryHandler');
 const StandupHandler = require('./handlers/standupHandler');
 const RetroHandler = require('./handlers/retroHandler');
 
+const AgentChannel = require('./features/agent/agentChannel');
+const agentChannel = new AgentChannel(client, db);
+const Onboarding = require('./features/onboarding');
+const onboarding = new Onboarding(client, agentChannel);
+
 console.log('Bot is starting...');
 
 // Discord Client Initialization
@@ -538,15 +543,58 @@ async function showRemindersSummary(msg, userId, filter = 'all') {
   }
 }
 
-client.on('ready', () => {
+client.on('ready', async () => {
   console.log(`Logged in as ${client.user.tag}!`);
   client.user.setActivity('for reminders (no /commands)', { type: 'WATCHING' });
   
+  // Ensure agent channel exists for all guilds
+  for (const [id, guild] of client.guilds.cache) {
+    await agentChannel.ensureAgentChannel(guild);
+  }
   // Schedule daily and weekly reminders
   scheduleReminders();
 });
 
+client.on('guildCreate', async (guild) => {
+  await agentChannel.ensureAgentChannel(guild);
+  await onboarding.start(guild);
+});
+
 client.on('messageCreate', async msg => {
+  // Contextual help: intercept help-like phrases anywhere
+  const helpTriggers = ['help', 'what can i do here', 'show me examples'];
+  if (helpTriggers.some(t => msg.content.toLowerCase().includes(t))) {
+    const { getContextualHelp } = require('./features/contextualHelp');
+    const isAgentChannel = msg.guild && agentChannel.agentChannels.has(msg.guild.id) && msg.channel.id === agentChannel.agentChannels.get(msg.guild.id);
+    const isDM = msg.channel.type === 1 || msg.channel.type === 'DM';
+    const isOwner = msg.guild && msg.author.id === msg.guild.ownerId;
+    // For agent admin check, fallback to false if not available
+    let isAdmin = false;
+    if (msg.guild && msg.author.id !== msg.guild.ownerId && agentChannel.agentManager) {
+      try {
+        isAdmin = await agentChannel.agentManager.isUserAdmin(msg.guild.id, msg.author.id);
+      } catch {}
+    }
+    const embed = getContextualHelp({
+      channelType: msg.channel.type,
+      isAgentChannel,
+      isDM,
+      isOwner,
+      isAdmin
+    });
+    await msg.reply({ embeds: [embed] });
+    return;
+  }
+
+  // Agent channel onboarding trigger (first message in agent channel)
+  if (msg.guild && agentChannel.agentChannels.has(msg.guild.id)) {
+    const agentChannelId = agentChannel.agentChannels.get(msg.guild.id);
+    if (msg.channel.id === agentChannelId) {
+      await onboarding.start(msg.guild);
+    }
+  }
+  // Agent channel interception
+  if (msg.guild && await agentChannel.handleMessage(msg)) return;
   if (msg.author.bot) return;
   // Allow bot to work in DMs or specified channels
   if (msg.channel.type === Partials.Channel && !client.guilds.cache.get(msg.guildId)?.channels.cache.get(msg.channelId) && msg.channel.type !== 'DM') {
@@ -608,9 +656,13 @@ client.on('messageCreate', async msg => {
       const reminderId = doneMatch[1];
       try {
         await markReminderDone(reminderId, userId);
-        return msg.reply(`✅ Reminder #${reminderId} marked as done! Nice work!`);
+        // Confetti/celebratory feedback for first-time reminder completion
+        return msg.reply('🎉 Reminder marked as done! Nice work!');
       } catch (error) {
-        return msg.reply(`Sorry, I couldn't mark that reminder as done. Either it doesn't exist or it's not yours.`);
+        // Friendly suggestion for reminders
+        const { getSetupSuggestion } = require('./features/setupSuggest');
+        const { embed, row } = getSetupSuggestion('reminder');
+        return msg.reply({ content: 'I couldn’t find that reminder. Want to create a new one?', embeds: [embed], components: [row] });
       }
     }
     
@@ -622,7 +674,10 @@ client.on('messageCreate', async msg => {
         await deleteReminder(reminderId, userId);
         return msg.reply(`🗑️ Reminder #${reminderId} has been deleted.`);
       } catch (error) {
-        return msg.reply(`Sorry, I couldn't delete that reminder. Either it doesn't exist or it's not yours.`);
+        // Friendly suggestion for reminders
+        const { getSetupSuggestion } = require('./features/setupSuggest');
+        const { embed, row } = getSetupSuggestion('reminder');
+        return msg.reply({ content: 'I couldn’t find that reminder. Want to create a new one?', embeds: [embed], components: [row] });
       }
     }
     
@@ -647,7 +702,8 @@ client.on('messageCreate', async msg => {
         msg.channel.id
       );
       
-      return msg.reply(createReminderEmbed(reminder));
+      // Confetti/celebratory feedback for first reminder creation
+      return msg.reply('🎊 Reminder created! I’ll remind you when it’s time.');
     }
   } catch (error) {
     console.error('Error processing message:', error);
@@ -658,6 +714,21 @@ client.on('messageCreate', async msg => {
 
 // Handle button interactions
 client.on('interactionCreate', async (interaction) => {
+  // Onboarding button handling
+  if (interaction.isButton() && interaction.customId.startsWith('onboard_')) {
+    await onboarding.handleInteraction(interaction);
+    return;
+  }
+
+  // Setup suggestion buttons for retro/standup
+  if (interaction.isButton() && interaction.customId === 'suggest_setup_retro') {
+    await interaction.reply({ content: 'Let’s get your first retrospective scheduled! Use `!retro setup weekly #channel friday 15:00` or type `!retro help` for more options.', ephemeral: true });
+    return;
+  }
+  if (interaction.isButton() && interaction.customId === 'suggest_setup_standup') {
+    await interaction.reply({ content: 'Let’s set up your daily standup! Use `!standup setup #channel 09:30 America/Los_Angeles` or type `!standup help` for more options.', ephemeral: true });
+    return;
+  }
   if (!interaction.isButton()) return;
   
   const [action, actionDetail, reminderId] = interaction.customId.split('_');

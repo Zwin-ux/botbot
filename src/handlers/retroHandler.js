@@ -185,7 +185,10 @@ class RetroHandler {
         });
         
         if (!config) {
-          return message.reply('No active retrospectives found. Please set one up first with `!retro setup`.');
+          // Friendly suggestion with setup button
+          const { getSetupSuggestion } = require('../features/setupSuggest');
+          const { embed, row } = getSetupSuggestion('retro');
+          return message.reply({ embeds: [embed], components: [row] });
         }
         
         configId = config.id;

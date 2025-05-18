@@ -1,7 +1,7 @@
 # BotBot - Discord Listening Bot
-![assisntat](https://github.com/user-attachments/assets/f6f5567e-2fff-4742-8534-99cb10153d33)
+![botbot](https://github.com/user-attachments/assets/f6f5567e-2fff-4742-8534-99cb10153d33)
 
-A comprehensive Discord bot for team productivity, featuring reminders, standups, retrospectives, and project management tools.
+A comprehensive Discord bot for team productivity, featuring reminders, standups, retrospectives, interactive games, and project management tools.
 
 ## Project Overview
 
@@ -74,24 +74,71 @@ This bot enhances team collaboration and productivity. It accepts reminders and 
 ### Reminder Commands
 
 - `remind me to [task] [time]` - Create a new reminder
+  - Example: `remind me to call John tomorrow at 3pm`
 - `todo [task]` - Create a quick todo without a specific time
+  - Example: `todo update project documentation`
 - `show my reminders` - View all your reminders
 - `show today's reminders` - See just today's tasks
+- `show overdue reminders` - View all overdue reminders
+- `done [id]` - Mark a reminder as done
+  - Example: `done 3`
+- `delete [id]` - Delete a reminder
+  - Example: `delete 2`
+- `snooze [id] [time]` - Snooze a reminder
+  - Example: `snooze 1 30m` (snoozes for 30 minutes)
 - `subscribe 🚀` - Subscribe to a category
 
 ### Standup Commands
 
-- `!standup setup [channel] [time]` - Schedule daily standups
-- `!standup start` - Manually start a standup session
-- `!standup list` - List all active standups
-- `!standup summary [id]` - Get a summary of responses
+- `setup standup in #channel at [time]` - Schedule daily standups
+  - Example: `setup standup in #team-standup at 9:30am`
+- `start standup` - Manually start a standup session
+- `standup list` - List all active standups
+- `standup summary` - Get a summary of responses
+- `end standup` - End the current standup session
 
 ### Retrospective Commands
 
-- `!retro setup [frequency] [channel] [day] [time]` - Schedule retrospectives
-- `!retro start` - Manually start a retrospective session
-- `!retro list` - List all active retrospectives
-- `!retro summary [id]` - Get a summary of feedback
+- `schedule retro [frequency] in #channel on [day] at [time]` - Schedule retrospectives
+  - Example: `schedule retro weekly in #retro on fridays at 4pm`
+- `start retro` - Manually start a retrospective session
+- `retro list` - List all active retrospectives
+- `retro summary` - Get a summary of feedback
+- `end retro` - End the current retrospective
+
+### Game Commands
+
+- `start emoji race` - Start an emoji reaction race game
+  - First to react with the correct sequence of emojis wins!
+  - Commands during game:
+    - `join` - Join the game
+    - `end game` - End the game (moderators only)
+
+- `start story` - Start a collaborative story building game
+  - Take turns adding sentences to create a story together
+  - Commands during game:
+    - `join` - Join the game
+    - `start` - Begin the game after players have joined
+    - `end game` - End the game early (moderators only)
+
+- `start who said it` - Start a quote guessing game
+  - Guess who said the famous quote
+  - Features:
+    - Automatic hints if no one guesses correctly
+    - Multiple difficulty levels
+  - Commands during game:
+    - `skip` - Skip the current quote (moderators only)
+    - `end game` - End the game (moderators only)
+
+- `games` - Show available games and commands
+
+### Help Commands
+
+- `help` - Show main help menu
+- `reminder help` - Show reminder commands
+- `standup help` - Show standup commands
+- `retro help` - Show retrospective commands
+- `game help` - Show game commands
 
 ## Implementation Status
 
@@ -102,6 +149,21 @@ This bot enhances team collaboration and productivity. It accepts reminders and 
 5. ✅ Daily standup meeting support
 6. ✅ Team retrospective functionality
 7. ✅ Personal summary notifications
-8. ⏳ Advanced analytics and reporting
-9. ⏳ External integrations (GitHub, Jira, etc.)
+8. ✅ Interactive Games:
+   - ✅ Emoji Race
+   - ✅ Story Builder
+   - ✅ Who Said It?
+9. ⏳ Advanced analytics and reporting
+10. ⏳ External integrations (GitHub, Jira, etc.)
+
+## Usage Tips
+
+- Most commands work in natural language - just type what you want to do!
+- Use `@BotBot help` in any channel for quick assistance
+- Games have a cooldown of 1 hour per channel to prevent spam
+- All games support both text commands and button interactions where applicable
+
+## Support
+
+For support or to report issues, please [open an issue](https://github.com/yourusername/botbot/issues) on GitHub.
 

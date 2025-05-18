@@ -1,4 +1,5 @@
 const GameManager = require('../features/games/gameManager');
+const { getSetupSuggestion } = require('../features/setupSuggest');
 
 class GameHandler {
   constructor(client, db) {
@@ -39,7 +40,9 @@ class GameHandler {
           return this.startWhoSaidIt(msg);
           
         default:
-          return this.showGameHelp(msg);
+          // Friendly suggestion for games
+          const { embed, row } = getSetupSuggestion('game');
+          return msg.reply({ content: 'I couldn’t find that game. Want to start a fun one?', embeds: [embed], components: [row] });
       }
     }
     
@@ -65,6 +68,8 @@ class GameHandler {
         timeLimit: 30000 // 30 seconds
       });
       this.cooldowns.set(msg.channel.id, Date.now());
+      // Confetti/celebratory feedback for first-time game start
+      msg.reply('🎉 Emoji Race started! Get ready to race!');
     } catch (error) {
       msg.reply(`Couldn't start Emoji Race: ${error.message}`);
     }
@@ -78,6 +83,8 @@ class GameHandler {
         turnTime: 60000 // 1 minute per turn
       });
       this.cooldowns.set(msg.channel.id, Date.now());
+      // Confetti/celebratory feedback for first-time game start
+      msg.reply('🎉 Story Builder started! Let the creativity flow!');
     } catch (error) {
       msg.reply(`Couldn't start Story Builder: ${error.message}`);
     }
@@ -91,6 +98,8 @@ class GameHandler {
         maxHints: 3
       });
       this.cooldowns.set(msg.channel.id, Date.now());
+      // Confetti/celebratory feedback for first-time game start
+      msg.reply('🎉 Who Said It? started! Guess the quote!');
     } catch (error) {
       msg.reply(`Couldn't start Who Said It?: ${error.message}`);
     }
@@ -141,6 +150,9 @@ class GameHandler {
       ]
     };
     
+    // Remove all ! from help text and examples for natural language
+    helpEmbed.description = 'Start any game by typing something like "start emoji race" or "start story".';
+    helpEmbed.fields = helpEmbed.fields.map(f => ({ ...f, value: f.value.replace(/`!?(start|join|end|games)[^`]*`/g, match => match.replace(/!/g, '')) }));
     msg.channel.send({ embeds: [helpEmbed] });
   }
 }
