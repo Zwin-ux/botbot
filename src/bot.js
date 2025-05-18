@@ -151,12 +151,15 @@ const reactionManager = new ReactionManager(db);
 const standupManager = new StandupManager(client, db);
 const retroManager = new RetroManager(client, db);
 
+// Initialize feature handlers
+const standupHandler = new StandupHandler(client, standupManager);
+const retroHandler = new RetroHandler(client, retroManager);
+const gameHandler = new (require('./handlers/gameHandler'))(client, db);
+
 // Initialize message handlers
 const messageHandler = new MessageHandler(client, contextManager, parser, reminderManager, categoryManager, reactionManager, standupHandler, retroHandler);
 const reactionHandler = new ReactionHandler(client, reminderManager, reactionManager, categoryManager);
 const categoryHandler = new CategoryHandler(client, categoryManager);
-const standupHandler = new StandupHandler(client, standupManager);
-const retroHandler = new RetroHandler(client, retroManager);
 
 // Setup interaction handlers for buttons and modals
 client.on('interactionCreate', async (interaction) => {
@@ -555,7 +558,11 @@ client.on('messageCreate', async msg => {
   const content = msg.content.trim();
   
   try {
-    // First, check if we're in a conversation state
+    // Handle game commands first
+    const gameCommandHandled = await gameHandler.handleMessage(msg);
+    if (gameCommandHandled) return;
+    
+    // Then check conversation state
     const state = conversationStates.get(userId);
     
     // If we're waiting for a time, try to handle that first

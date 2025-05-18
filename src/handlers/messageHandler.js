@@ -46,30 +46,37 @@ class MessageHandler {
           if (handled) return;
         }
         
-        // Special ping response
-        if (content.toLowerCase() === 'ping bot') {
-          return msg.reply('Pong! I\'m here and ready to help with your reminders and tasks. What can I do for you today?');
+        // Convert content to lowercase for easier matching
+        const lowerContent = content.toLowerCase();
+        
+        // Ping response
+        if (lowerContent.match(/^(hi|hello|hey|ping|yo|sup|'?sup|are you there|bot\??)/i)) {
+          return msg.reply('Hi there! I\'m here and ready to help with your reminders, standups, and retrospectives. What can I do for you today?');
         }
         
         // Help command
-        if (content.toLowerCase() === 'help' || content.toLowerCase() === 'what can you do?') {
+        if (lowerContent.match(/^(help|what can you do|commands|support)\??/i)) {
           return this.showHelp(msg);
         }
         
         // Handle standup commands
-        if (content.startsWith('!standup')) {
+        const standupMatch = lowerContent.match(/(?:standup|daily)(?:\s+(setup|start|list|summary|help))?/i);
+        if (standupMatch) {
           if (this.standupHandler) {
-            const args = content.slice('!standup'.length).trim().split(/\s+/);
-            await this.standupHandler.processStandupCommand(msg, args);
+            const subCommand = standupMatch[1] || '';
+            const args = content.replace(/\b(?:standup|daily)\s*/i, '').trim().split(/\s+/);
+            await this.standupHandler.processStandupCommand(msg, [subCommand, ...args]);
             return;
           }
         }
         
         // Handle retrospective commands
-        if (content.startsWith('!retro')) {
+        const retroMatch = lowerContent.match(/(?:retro|retrospective)(?:\s+(setup|start|list|summary|help))?/i);
+        if (retroMatch) {
           if (this.retroHandler) {
-            const args = content.slice('!retro'.length).trim().split(/\s+/);
-            await this.retroHandler.processRetroCommand(msg, args);
+            const subCommand = retroMatch[1] || '';
+            const args = content.replace(/\b(?:retro|retrospective)\s*/i, '').trim().split(/\s+/);
+            await this.retroHandler.processRetroCommand(msg, [subCommand, ...args]);
             return;
           }
         }
@@ -80,8 +87,8 @@ class MessageHandler {
         const handledByCategory = await catHandler.handleMessage(msg, content);
         if (handledByCategory) return;
         
-        // Show reminders commands with enhanced filtering
-        const reminderListMatch = content.toLowerCase().match(/(?:show|list|what.?s|my)\s+(?:reminders?|todos?|tasks?|list)/i);
+        // Show reminders commands with enhanced filtering and natural language
+        const reminderListMatch = lowerContent.match(/(?:show|list|what.?s|my|view|see|check|display|get|what are (?:my|the)|do i have any)\s+(?:reminders?|todos?|tasks?|list|upcoming|pending|due)/i);
         if (reminderListMatch) {
           // Check for category filter
           let categoryId = null;
@@ -156,48 +163,47 @@ class MessageHandler {
   async showHelp(msg) {
     const helpEmbed = {
       color: 0x0099ff,
-      title: 'How I Can Help You',
-      description: 'I\'m your reminder buddy! No slash commands needed - just chat with me naturally.',
+      title: 'Bot Commands',
+      description: 'Here are the available commands. You can type them naturally.',
       fields: [
         { 
-          name: 'Setting Reminders',
-          value: '`remind me to [task] [time]`\nExample: `remind me to call John tomorrow at 3pm`\n\n`todo [task]`\nExample: `todo buy milk`'
+          name: 'Reminders',
+          value: '`remind me to [task] [time]`\nExample: `remind me to call John tomorrow at 3pm`\n\n`todo [task]`\nExample: `todo buy milk`\n\n`show my reminders` - View all reminders\n`what\'s due today?` - Today\'s tasks'
         },
         {
-          name: 'Viewing Reminders',
-          value: '`show my reminders` - Shows all your reminders\n`show today\'s reminders` - Just today\'s\n`show overdue reminders` - Past due\n`show reminders by priority` - Sorted by votes'
+          name: 'Standups',
+          value: '`setup standup in #channel at 9:30am` - Daily standup\n' +
+                 '`start standup` - Begin a standup now\n' +
+                 '`list standups` - View scheduled standups\n' +
+                 '`standup summary` - Get latest summary',
         },
         {
-          name: 'Managing Categories',
-          value: '`list categories` - See all categories\n`subscribe 🚀` - Subscribe to a category\n`my subscriptions` - See what you\'re subscribed to'
+          name: 'Retrospectives',
+          value: '`schedule retro weekly in #channel on fridays` - Weekly retro\n' +
+                 '`start retro` - Begin a retro now\n' +
+                 '`list retros` - Show scheduled retros\n' +
+                 '`retro summary` - Get latest insights',
         },
         {
-          name: 'Task Voting & Priority',
-          value: 'React to tasks with these emojis to vote on priority:\n👍 (+1), ❤️ (+2), 🔥 (+3), ⭐ (+2), 🚀 (+3), 👎 (-1)'
+          name: 'Categories',
+          value: '`create category :emoji: Name` - New category\n' +
+                 '`show my categories` - Your categories\n' +
+                 '`add to work` - Categorize a task\n' +
+                 '`filter by work` - View by category',
         },
         {
-          name: 'Actions',
-          value: 'Use the buttons on reminders or:\n`done [id]` - Mark complete\n`delete [id]` - Remove'
-        },
-        {
-          name: 'Daily Standups',
-          value: '`!standup setup [channel] [time]` - Set up daily standups\n`!standup start` - Start a standup session\n`!standup list` - List all standups\n`!standup summary [id]` - Get a standup summary'
-        },
-        {
-          name: 'Team Retrospectives',
-          value: '`!retro setup [frequency] [channel] [day] [time]` - Schedule retrospectives\n`!retro start` - Start a retrospective session\n`!retro list` - List active retrospectives\n`!retro summary [id]` - Get a retrospective summary'
-        },
-        {
-          name: 'Personal Summaries',
-          value: 'React to your reminders with ⏰ to get daily DM summaries\n`personal summary on` - Enable daily summaries\n`personal summary off` - Disable daily summaries'
+          name: 'Need Help?',
+          value: '`help` - Show this message\n' +
+                 '`hi` or `ping` - Check if I\'m online\n' +
+                 '`suggestions` - Get command ideas',
         }
       ],
       footer: {
-        text: 'Tip: Use `!standup help` or `!retro help` for more detailed command help'
+        text: '💡 Try natural language! Example: "Remind me to submit the report tomorrow at 2pm"'
       }
     };
-    
-    return msg.reply({ embeds: [helpEmbed] });
+
+    await msg.reply({ embeds: [helpEmbed] });
   }
 
   /**
