@@ -8,13 +8,19 @@
   },
   "author": "",
   "license": "ISC",
-  "keywords": ["discord", "bot", "reminder", "todo", "productivity"],
+  "keywords": [
+    "discord",
+    "bot",
+    "reminder",
+    "todo",
+    "productivity"
+  ],
   "description": "A minimal, message-driven Discord bot for tracking projects and pinging reminders.",
   "dependencies": {
+    "date-fns": "^3.6.0",
     "discord.js": "^14.19.3",
-    "sqlite3": "^5.1.7",
+    "dotenv": "^16.5.0",
     "node-cron": "^3.0.3",
-    "dotenv": "^16.4.5",
-    "date-fns": "^3.6.0"
+    "sqlite3": "^5.1.7"
   }
 }

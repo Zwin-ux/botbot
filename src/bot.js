@@ -1,16 +1,33 @@
 // Main bot file
-require('dotenv').config(); // For loading environment variables
-
-const { Client, GatewayIntentBits, Partials } = require('discord.js'); // Added Partials for DMs
+require('dotenv').config();
+const { Client, GatewayIntentBits, Partials, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 const sqlite3 = require('sqlite3').verbose();
 const cron = require('node-cron');
-const {
-  addHours, addDays, addWeeks, addMinutes,
+const { 
+  format, addDays, addHours, addMinutes, addWeeks,
   setHours, setMinutes, setSeconds,
-  getTime, format, parse: dateParse, // Renamed to avoid conflict with native JSON.parse
-  isFuture, startOfTomorrow, endOfDay, isValid,
-  // Add specific weekday functions if needed later e.g., nextMonday
+  getTime, isFuture, startOfTomorrow, endOfDay, isValid
 } = require('date-fns');
+
+// Core components
+const ContextManager = require('./contextManager');
+const EnhancedParser = require('./enhancedParser');
+
+// Database managers
+const ReminderManager = require('./database/reminderManager');
+const CategoryManager = require('./database/categoryManager');
+const ReactionManager = require('./database/reactionManager');
+
+// Feature managers
+const StandupManager = require('./features/standupManager');
+const RetroManager = require('./features/retroManager');
+
+// Message handlers
+const MessageHandler = require('./handlers/messageHandler');
+const ReactionHandler = require('./handlers/reactionHandler');
+const CategoryHandler = require('./handlers/categoryHandler');
+const StandupHandler = require('./handlers/standupHandler');
+const RetroHandler = require('./handlers/retroHandler');
 
 console.log('Bot is starting...');
 
@@ -33,155 +50,497 @@ const db = new sqlite3.Database('./reminders.db', sqlite3.OPEN_READWRITE | sqlit
     console.error('Error opening database:', err.message);
   } else {
     console.log('Connected to the SQLite database.');
-    db.run(`CREATE TABLE IF NOT EXISTS reminders (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      userId TEXT NOT NULL,
-      userTag TEXT NOT NULL,
-      content TEXT NOT NULL,
-      dueTime INTEGER, /* Store as Unix timestamp (seconds) for easy comparison */
-      isRecurring BOOLEAN DEFAULT 0,
-      recurrencePattern TEXT,
-      channelId TEXT NOT NULL,
-      messageId TEXT,
-      status TEXT DEFAULT 'pending', /* pending, done, snoozed, deleted */
-      createdAt INTEGER DEFAULT (cast(strftime('%s', 'now') as int))
-    )`);
-    db.run(`CREATE TABLE IF NOT EXISTS motivational_messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      message TEXT NOT NULL,
-      category TEXT DEFAULT 'general'
-    )`);
+    // Setup database tables
+    db.serialize(() => {
+      db.run(`CREATE TABLE IF NOT EXISTS reminders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId TEXT NOT NULL,
+        userTag TEXT NOT NULL,
+        content TEXT NOT NULL,
+        dueTime INTEGER, /* Store as Unix timestamp (seconds) for easy comparison */
+        isRecurring BOOLEAN DEFAULT 0,
+        recurrencePattern TEXT,
+        channelId TEXT NOT NULL,
+        messageId TEXT,
+        status TEXT DEFAULT 'pending', /* pending, done, snoozed, deleted */
+        createdAt INTEGER DEFAULT (cast(strftime('%s', 'now') as int))
+      )`);
+      
+      db.run(`CREATE TABLE IF NOT EXISTS motivational_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        message TEXT NOT NULL,
+        category TEXT DEFAULT 'general'
+      )`);
+
+      // Add some default motivational messages if none exist
+      db.get('SELECT COUNT(*) as count FROM motivational_messages', (err, row) => {
+        if (err) return console.error('Error checking motivational messages:', err);
+        if (row.count === 0) {
+          const defaultMessages = [
+            { message: "You got this! 💪", category: "general" },
+            { message: "One step at a time, you're making progress! 🚀", category: "general" },
+            { message: "Stay focused, stay determined! 🔥", category: "productivity" },
+            { message: "Remember why you started! 💭", category: "motivation" },
+            { message: "Every small task completed is a victory! 🏆", category: "achievement" }
+          ];
+          
+          const stmt = db.prepare('INSERT INTO motivational_messages (message, category) VALUES (?, ?)');
+          defaultMessages.forEach(msg => {
+            stmt.run(msg.message, msg.category);
+          });
+          stmt.finalize();
+          console.log('Added default motivational messages to database.');
+        }
+      });
+      
+      // Add category table for reminder categorization
+      db.run(`CREATE TABLE IF NOT EXISTS categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        emoji TEXT,
+        description TEXT,
+        createdAt INTEGER DEFAULT (cast(strftime('%s', 'now') as int)),
+        UNIQUE(name)
+      )`);
+      
+      // Add user category subscriptions table
+      db.run(`CREATE TABLE IF NOT EXISTS category_subscriptions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId TEXT NOT NULL,
+        categoryId INTEGER NOT NULL,
+        subscribedAt INTEGER DEFAULT (cast(strftime('%s', 'now') as int)),
+        UNIQUE(userId, categoryId),
+        FOREIGN KEY(categoryId) REFERENCES categories(id)
+      )`);
+      
+      // Add reaction tracking table
+      db.run(`CREATE TABLE IF NOT EXISTS reminder_reactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        reminderId INTEGER NOT NULL,
+        userId TEXT NOT NULL,
+        emoji TEXT NOT NULL,
+        value INTEGER NOT NULL,
+        createdAt INTEGER DEFAULT (cast(strftime('%s', 'now') as int)),
+        UNIQUE(reminderId, userId, emoji),
+        FOREIGN KEY(reminderId) REFERENCES reminders(id)
+      )`);
+      
+      // Add priority column to reminders if it doesn't exist
+      db.run(`ALTER TABLE reminders ADD COLUMN priority INTEGER DEFAULT 0`, (err) => {
+        // Ignore error - column likely already exists
+      });
+      
+      // Add categoryId column to reminders if it doesn't exist
+      db.run(`ALTER TABLE reminders ADD COLUMN categoryId INTEGER`, (err) => {
+        // Ignore error - column likely already exists
+      });
+    });
   }
 });
 
-// Helper function to parse time strings - can be expanded significantly
-function parseTimeText(timeText, baseDate = new Date()) {
-  if (!timeText) return null;
-  const now = baseDate;
-  let date = null;
+// Initialize context manager and parser
+const contextManager = new ContextManager(db);
+const parser = new EnhancedParser();
 
-  // "in X unit"
-  let match = timeText.match(/in\s+(\d+)\s+(minute|min|hour|hr|day|week)s?/i);
-  if (match) {
-    const value = parseInt(match[1]);
-    const unit = match[2].toLowerCase();
-    if (unit.startsWith('minute') || unit.startsWith('min')) date = addMinutes(now, value);
-    else if (unit.startsWith('hour') || unit.startsWith('hr')) date = addHours(now, value);
-    else if (unit.startsWith('day')) date = addDays(now, value);
-    else if (unit.startsWith('week')) date = addWeeks(now, value);
-  }
+// Initialize database managers
+const reminderManager = new ReminderManager(db);
+const categoryManager = new CategoryManager(db);
+const reactionManager = new ReactionManager(db);
 
-  // "tomorrow (at HH:MM am/pm)?"
-  if (!date) {
-    match = timeText.match(/tomorrow(?:\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?)?/i);
-    if (match) {
-      date = startOfTomorrow();
-      const hour = parseInt(match[1]);
-      const minute = parseInt(match[2]) || 0;
-      let actualHour = hour;
-      if (match[3] && match[3].toLowerCase() === 'pm' && hour < 12) actualHour += 12;
-      if (match[3] && match[3].toLowerCase() === 'am' && hour === 12) actualHour = 0; // Midnight
-      if (!isNaN(actualHour)) {
-        date = setHours(date, actualHour);
-        if (!isNaN(minute)) date = setMinutes(date, minute);
-      }
-    }
-  }
-  
-  // "at HH:MM (am/pm)? (today)?" - assumes today if time is future, otherwise tomorrow
-   if (!date) {
-    match = timeText.match(/(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?(?:\s+(today|tomorrow))?/i);
-    if (match) {
-        let hour = parseInt(match[1]);
-        const minute = parseInt(match[2]) || 0;
-        const ampm = match[3] ? match[3].toLowerCase() : null;
-        const daySpecifier = match[4] ? match[4].toLowerCase() : null;
+// Initialize feature managers
+const standupManager = new StandupManager(client, db);
+const retroManager = new RetroManager(client, db);
 
-        if (ampm === 'pm' && hour < 12) hour += 12;
-        if (ampm === 'am' && hour === 12) hour = 0; // Midnight case
+// Initialize message handlers
+const messageHandler = new MessageHandler(client, contextManager, parser, reminderManager, categoryManager, reactionManager, standupHandler, retroHandler);
+const reactionHandler = new ReactionHandler(client, reminderManager, reactionManager, categoryManager);
+const categoryHandler = new CategoryHandler(client, categoryManager);
+const standupHandler = new StandupHandler(client, standupManager);
+const retroHandler = new RetroHandler(client, retroManager);
 
-        date = setSeconds(setMinutes(setHours(new Date(), hour), minute), 0);
-
-        if (daySpecifier === 'tomorrow') {
-            date = addDays(date, 1);
-        } else if (!daySpecifier && !isFuture(date)) { // If "today" implied but time is past, assume tomorrow
-            date = addDays(date, 1);
+// Setup interaction handlers for buttons and modals
+client.on('interactionCreate', async (interaction) => {
+  // Handle button interactions
+  if (interaction.isButton()) {
+    // Reminder buttons (done, snooze, delete) have format: action_reminderId
+    if (interaction.customId.startsWith('done_') || 
+        interaction.customId.startsWith('snooze_') || 
+        interaction.customId.startsWith('delete_')) {
+      const [action, reminderId] = interaction.customId.split('_');
+      
+      try {
+        if (action === 'done') {
+          await markReminderDone(reminderId, interaction.user.id);
+          await interaction.reply({ content: '✅ Reminder marked as done!', ephemeral: true });
+          // Try to delete the original message with the buttons
+          try {
+            await interaction.message.delete();
+          } catch (e) {
+            // Ignore errors if we can't delete the message
+          }
+        } else if (action === 'snooze') {
+          // Show a selection of snooze options
+          const row = new ActionRowBuilder()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId(`snooze_time_${reminderId}_30`)
+                .setLabel('30 minutes')
+                .setStyle(ButtonStyle.Primary),
+              new ButtonBuilder()
+                .setCustomId(`snooze_time_${reminderId}_60`)
+                .setLabel('1 hour')
+                .setStyle(ButtonStyle.Primary),
+              new ButtonBuilder()
+                .setCustomId(`snooze_time_${reminderId}_360`)
+                .setLabel('6 hours')
+                .setStyle(ButtonStyle.Primary),
+              new ButtonBuilder()
+                .setCustomId(`snooze_time_${reminderId}_1440`)
+                .setLabel('1 day')
+                .setStyle(ButtonStyle.Primary)
+            );
+          
+          await interaction.reply({ content: 'For how long would you like to snooze this reminder?', components: [row], ephemeral: true });
+        } else if (action === 'delete') {
+          await deleteReminder(reminderId, interaction.user.id);
+          await interaction.reply({ content: '🗑️ Reminder deleted.', ephemeral: true });
+          // Try to delete the original message with the buttons
+          try {
+            await interaction.message.delete();
+          } catch (e) {
+            // Ignore errors if we can't delete the message
+          }
         }
+      } catch (error) {
+        console.error('Error handling reminder interaction:', error);
+        await interaction.reply({ content: 'Sorry, there was an error processing your request.', ephemeral: true });
+      }
+      return;
+    }
+    
+    // Snooze time selection buttons have format: snooze_time_reminderId_minutes
+    if (interaction.customId.startsWith('snooze_time_')) {
+      const parts = interaction.customId.split('_');
+      const reminderId = parts[2];
+      const minutes = parseInt(parts[3]);
+      
+      try {
+        await snoozeReminder(reminderId, interaction.user.id, minutes);
+        await interaction.update({ content: `⏰ Reminder snoozed for ${minutes} minutes.`, components: [] });
+      } catch (error) {
+        console.error('Error handling snooze interaction:', error);
+        await interaction.reply({ content: 'Sorry, there was an error processing your snooze request.', ephemeral: true });
+      }
+      return;
+    }
+    
+    // Handle standup interactions
+    if (interaction.customId.startsWith('standup_')) {
+      try {
+        await standupManager.handleStandupInteraction(interaction);
+      } catch (error) {
+        console.error('Error handling standup interaction:', error);
+        await interaction.reply({ content: 'Sorry, there was an error processing your standup request.', ephemeral: true });
+      }
+      return;
+    }
+    
+    // Handle retro interactions
+    if (interaction.customId.startsWith('retro_')) {
+      try {
+        await retroManager.handleRetroInteraction(interaction);
+      } catch (error) {
+        console.error('Error handling retrospective interaction:', error);
+        await interaction.reply({ content: 'Sorry, there was an error processing your retrospective request.', ephemeral: true });
+      }
+      return;
     }
   }
-
-  // Basic "todo" or no time specified means no specific due time for now
-  if (timeText.match(/^todo\b/i) && !date) {
-    return null; // Or a default like endOfDay(now)
-  }
   
-  return date && isValid(date) && isFuture(date) ? getTime(date) / 1000 : null; // Return Unix timestamp in seconds
+  // Handle modal submissions
+  if (interaction.isModalSubmit()) {
+    // Handle standup modal submissions
+    if (interaction.customId.startsWith('standup_modal_')) {
+      try {
+        await standupManager.handleStandupModalSubmit(interaction);
+      } catch (error) {
+        console.error('Error handling standup modal submission:', error);
+        await interaction.reply({ content: 'Sorry, there was an error processing your standup response.', ephemeral: true });
+      }
+      return;
+    }
+    
+    // Handle retro modal submissions
+    if (interaction.customId.startsWith('retro_modal_')) {
+      try {
+        await retroManager.handleRetroModalSubmit(interaction);
+      } catch (error) {
+        console.error('Error handling retrospective modal submission:', error);
+        await interaction.reply({ content: 'Sorry, there was an error processing your retrospective feedback.', ephemeral: true });
+      }
+      return;
+    }
+  }
+});
+
+// Helper functions for reminder management
+async function createReminder(userId, userTag, content, dueTime, channelId) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `INSERT INTO reminders 
+       (userId, userTag, content, dueTime, channelId, createdAt)
+       VALUES (?, ?, ?, ?, ?, cast(strftime('%s', 'now') as int))`,
+      [userId, userTag, content, dueTime ? Math.floor(dueTime.getTime() / 1000) : null, channelId],
+      function(err) {
+        if (err) return reject(err);
+        resolve({
+          id: this.lastID,
+          userId,
+          userTag,
+          content,
+          dueTime: dueTime ? Math.floor(dueTime.getTime() / 1000) : null,
+          channelId
+        });
+      }
+    );
+  });
 }
 
-
-const reminderPatterns = [
-  // remind me to <task> in <number> <unit> | remind me <task> in <number> <unit>
-  {
-    regex: /remind\s*(?:me\s*to)?\s*(.+?)\s+(in\s+\d+\s+(?:minute|min|hour|hr|day|week)s?)/i,
-    parser: (match) => ({ task: match[1].trim(), timeText: match[2].trim() })
-  },
-  // remind me to <task> tomorrow (at HH:MM am/pm)? | remind me <task> tomorrow (at HH:MM am/pm)?
-  {
-    regex: /remind\s*(?:me\s*to)?\s*(.+?)\s+(tomorrow(?:\s+at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)?)/i,
-    parser: (match) => ({ task: match[1].trim(), timeText: match[2].trim() })
-  },
-   // remind me to <task> at <time> (am/pm)? (today/tomorrow)?
-  {
-    regex: /remind\s*(?:me\s*to)?\s*(.+?)\s+(at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?(?:\s+today|\s+tomorrow)?)/i,
-    parser: (match) => ({ task: match[1].trim(), timeText: match[2].trim() })
-  },
-  // todo <task> (with optional time phrases that might be caught by above or parsed directly)
-  // This is a bit more generic, ensure specific time phrases are part of the task if not parsed separately
-  {
-    regex: /todo\s+(.+)/i,
-    parser: (match) => {
-        const fullTask = match[1].trim();
-        // Try to see if a time phrase is at the end of the todo
-        const timeMatch = fullTask.match(/(.*?)\s*((?:in|at|tomorrow).*)$/i);
-        if (timeMatch && timeMatch[2]) {
-            return { task: timeMatch[1].trim(), timeText: timeMatch[2].trim() };
-        }
-        return { task: fullTask, timeText: null }; // Default to no specific time
+// Helper function to get user's reminders
+async function getUserReminders(userId, status = 'pending', filter = 'all') {
+  return new Promise((resolve, reject) => {
+    let query = 'SELECT * FROM reminders WHERE userId = ? AND status = ?';
+    const params = [userId, status];
+    
+    if (filter === 'today') {
+      const today = new Date();
+      const startOfDay = Math.floor(new Date(today.setHours(0, 0, 0, 0)).getTime() / 1000);
+      const endOfDay = Math.floor(new Date(today.setHours(23, 59, 59, 999)).getTime() / 1000);
+      query += ' AND (dueTime IS NULL OR (dueTime >= ? AND dueTime <= ?))';
+      params.push(startOfDay, endOfDay);
+    } else if (filter === 'overdue') {
+      const now = Math.floor(Date.now() / 1000);
+      query += ' AND dueTime < ?';
+      params.push(now);
     }
-  },
-   // "remind <anything>" - a general catch-all if no specific time pattern is matched within "anything"
-   // This regex should be less greedy with (.+) if more specific time patterns are to be extracted from "anything" later
-  {
-    regex: /^remind\s+(.+)/i, // General catch-all, might need refinement
-    parser: (match) => {
-        const fullText = match[1].trim();
-        // Attempt to extract time-like phrases from the end of the fullText
-        // This is a simplified approach; a more robust NLP-like parser would be better for complex cases
-        const timeKeywords = ["in ", "at ", "tomorrow", "next week", "on monday"]; // Add more
-        let task = fullText;
-        let timeText = null;
+    
+    query += ' ORDER BY dueTime ASC';
+    
+    db.all(query, params, (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows);
+    });
+  });
+}
 
-        for (const keyword of timeKeywords) {
-            const keywordIndex = fullText.toLowerCase().lastIndexOf(keyword);
-            if (keywordIndex !== -1) {
-                // Check if it's a plausible time phrase (e.g., not "in the middle of something")
-                const potentialTimeText = fullText.substring(keywordIndex);
-                // A simple heuristic: if it contains a number or specific day, it's more likely time
-                if (potentialTimeText.match(/\d+|monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today/i)) {
-                    task = fullText.substring(0, keywordIndex).trim();
-                    timeText = potentialTimeText.trim();
-                    break;
-                }
-            }
+// Helper function to mark a reminder as done
+async function markReminderDone(reminderId, userId) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      'UPDATE reminders SET status = ? WHERE id = ? AND userId = ?',
+      ['done', reminderId, userId],
+      function(err) {
+        if (err) return reject(err);
+        if (this.changes === 0) return reject(new Error('Reminder not found or not owned by user'));
+        resolve(true);
+      }
+    );
+  });
+}
+
+// Helper function to snooze a reminder
+async function snoozeReminder(reminderId, userId, snoozeMinutes = 30) {
+  return new Promise((resolve, reject) => {
+    db.get(
+      'SELECT * FROM reminders WHERE id = ? AND userId = ? AND status = ?',
+      [reminderId, userId, 'pending'],
+      (err, reminder) => {
+        if (err) return reject(err);
+        if (!reminder) return reject(new Error('Reminder not found or not owned by user'));
+        
+        let newDueTime;
+        if (reminder.dueTime) {
+          // If reminder had a due time, add snooze time to it
+          newDueTime = reminder.dueTime + (snoozeMinutes * 60);
+        } else {
+          // If reminder had no due time, set it to now + snooze time
+          newDueTime = Math.floor(Date.now() / 1000) + (snoozeMinutes * 60);
         }
-        return { task, timeText };
+        
+        db.run(
+          'UPDATE reminders SET dueTime = ? WHERE id = ?',
+          [newDueTime, reminderId],
+          function(err) {
+            if (err) return reject(err);
+            resolve({
+              id: reminderId,
+              newDueTime
+            });
+          }
+        );
+      }
+    );
+  });
+}
+
+// Helper function to delete a reminder
+async function deleteReminder(reminderId, userId) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      'DELETE FROM reminders WHERE id = ? AND userId = ?',
+      [reminderId, userId],
+      function(err) {
+        if (err) return reject(err);
+        if (this.changes === 0) return reject(new Error('Reminder not found or not owned by user'));
+        resolve(true);
+      }
+    );
+  });
+}
+
+// Helper function to get a random motivational message
+async function getMotivationalMessage(category = null) {
+  return new Promise((resolve, reject) => {
+    let query = 'SELECT message FROM motivational_messages';
+    const params = [];
+    
+    if (category) {
+      query += ' WHERE category = ?';
+      params.push(category);
     }
+    
+    query += ' ORDER BY RANDOM() LIMIT 1';
+    
+    db.get(query, params, (err, row) => {
+      if (err) return reject(err);
+      resolve(row ? row.message : null);
+    });
+  });
+}
+
+// Create interactive reminder message
+function createReminderEmbed(reminder) {
+  const embed = new EmbedBuilder()
+    .setColor('#0099ff')
+    .setTitle('Reminder Set!')
+    .addFields(
+      { name: 'Task', value: reminder.content, inline: true }
+    );
+
+  if (reminder.dueTime) {
+    const dueDate = new Date(reminder.dueTime * 1000);
+    embed.addFields(
+      { name: 'Due', value: format(dueDate, 'PPPPpppp'), inline: true }
+    );
+  } else {
+    embed.addFields({ name: 'Due', value: 'No specific time', inline: true });
   }
-];
+
+  embed.setFooter({ text: `ID: ${reminder.id}` })
+       .setTimestamp();
+
+  const row = new ActionRowBuilder()
+    .addComponents(
+      new ButtonBuilder()
+        .setCustomId(`done_${reminder.id}`)
+        .setLabel('Done ✅')
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId(`snooze_${reminder.id}`)
+        .setLabel('Snooze ⏰')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`delete_${reminder.id}`)
+        .setLabel('Delete 🗑️')
+        .setStyle(ButtonStyle.Danger)
+    );
+
+  return { embeds: [embed], components: [row] };
+}
+
+// Handle conversation states
+const conversationStates = new Map();
+
+async function handleIncompleteReminder(msg, task) {
+  const userId = msg.author.id;
+  conversationStates.set(userId, { state: 'AWAITING_TIME', task });
+  await msg.reply(`Got it! When would you like to be reminded to "${task}"? (e.g., "in 2 hours", "tomorrow at 3pm")`);
+}
+
+async function handleTimeResponse(msg, timeText) {
+  const userId = msg.author.id;
+  const state = conversationStates.get(userId);
+  if (!state || state.state !== 'AWAITING_TIME') return false;
+
+  const dueTime = parser.parseTime(timeText);
+  if (!dueTime) {
+    await msg.reply("I couldn't understand that time. Could you try again? (e.g., 'in 2 hours', 'tomorrow at 3pm')");
+    return true;
+  }
+
+  const reminder = await createReminder(
+    msg.author.id,
+    msg.author.tag,
+    state.task,
+    dueTime,
+    msg.channel.id
+  );
+
+  conversationStates.delete(userId);
+  await msg.reply(createReminderEmbed(reminder));
+  return true;
+}
+
+// Show reminders summary
+async function showRemindersSummary(msg, userId, filter = 'all') {
+  try {
+    const reminders = await getUserReminders(userId, 'pending', filter);
+    
+    if (reminders.length === 0) {
+      const noRemindersMsg = filter === 'today' 
+        ? "You don't have any reminders for today! 🎉" 
+        : filter === 'overdue'
+          ? "No overdue reminders! You're all caught up! 🎉"
+          : "You don't have any active reminders!";
+      return msg.reply(noRemindersMsg);
+    }
+
+    let message = `📋 **Your ${filter === 'today' ? 'today\'s' : filter === 'overdue' ? 'overdue' : ''} reminders:**\n\n`;
+    
+    reminders.forEach((reminder, index) => {
+      const dueText = reminder.dueTime 
+        ? `⏰ ${format(new Date(reminder.dueTime * 1000), 'MMM d, yyyy h:mm a')}`
+        : 'No specific time';
+      message += `**${index + 1}.** ${reminder.content} (ID: ${reminder.id})\n${dueText}\n\n`;
+    });
+
+    if (filter === 'all') {
+      const now = Math.floor(Date.now() / 1000);
+      const today = reminders.filter(r => r.dueTime && r.dueTime >= now - (now % 86400) && r.dueTime < now - (now % 86400) + 86400).length;
+      const overdue = reminders.filter(r => r.dueTime && r.dueTime < now).length;
+      
+      if (today > 0 || overdue > 0) {
+        message += '\nQuick filters: ';
+        const filters = [];
+        if (today > 0) filters.push(`[Today (${today})]`);
+        if (overdue > 0) filters.push(`[Overdue (${overdue})]`);
+        message += filters.join(' • ');
+      }
+    }
+
+    return msg.reply(message);
+  } catch (error) {
+    console.error('Error showing reminders summary:', error);
+    return msg.reply("Sorry, I couldn't retrieve your reminders. Please try again later.");
+  }
+}
 
 client.on('ready', () => {
   console.log(`Logged in as ${client.user.tag}!`);
-  client.user.setActivity('for your reminders! (no /commands)', { type: 'WATCHING' });
+  client.user.setActivity('for reminders (no /commands)', { type: 'WATCHING' });
+  
+  // Schedule daily and weekly reminders
+  scheduleReminders();
 });
 
 client.on('messageCreate', async msg => {
@@ -191,66 +550,383 @@ client.on('messageCreate', async msg => {
       // If it's a partial channel and not a known guild channel, and not a DM, ignore (e.g. thread without bot perms)
       return;
   }
-
-  const rawContent = msg.content; // Keep original casing for task
-
-  if (rawContent.toLowerCase() === 'ping bot') {
-    msg.reply('Pong!');
-    return;
+  
+  const userId = msg.author.id;
+  const content = msg.content.trim();
+  
+  try {
+    // First, check if we're in a conversation state
+    const state = conversationStates.get(userId);
+    
+    // If we're waiting for a time, try to handle that first
+    if (state?.state === 'AWAITING_TIME') {
+      const handled = await handleTimeResponse(msg, content);
+      if (handled) return;
+    }
+    
+    // Special ping response
+    if (content.toLowerCase() === 'ping bot') {
+      return msg.reply('Pong! I\'m here and ready to help with your reminders.');
+    }
+    
+    // Help command
+    if (content.toLowerCase() === 'help' || content.toLowerCase() === 'what can you do?') {
+      const helpEmbed = new EmbedBuilder()
+        .setColor('#0099ff')
+        .setTitle('How I Can Help You')
+        .setDescription('I\'m your reminder buddy! No slash commands needed - just chat with me naturally.')
+        .addFields(
+          { name: 'Set a reminder', value: '`remind me to [task] [time]`\nExample: `remind me to call John tomorrow at 3pm`' },
+          { name: 'Quick todo', value: '`todo [task]`\nExample: `todo buy milk`' },
+          { name: 'View reminders', value: '`show my reminders` or `what\'s on my list?`' },
+          { name: 'Mark as done', value: 'Use the buttons on reminders or `done [id]`\nExample: `done 1`' },
+          { name: 'Snooze reminder', value: 'Use the snooze button on reminders' },
+          { name: 'Delete reminder', value: 'Use the delete button on reminders or `delete [id]`\nExample: `delete 2`' }
+        )
+        .setFooter({ text: 'I understand natural language, so feel free to ask naturally!' });
+      
+      return msg.reply({ embeds: [helpEmbed] });
+    }
+    
+    // Show reminders commands
+    if (content.toLowerCase().match(/(?:show|list|what.?s|my)\s+(?:reminders?|todos?|tasks?|list)/i)) {
+      const filterMatch = content.toLowerCase().match(/(?:today|overdue)/i);
+      const filter = filterMatch ? filterMatch[0].toLowerCase() : 'all';
+      return showRemindersSummary(msg, userId, filter);
+    }
+    
+    // Mark reminder as done
+    const doneMatch = content.match(/(?:done|complete|finish|completed|finished)\s+(\d+)/i);
+    if (doneMatch) {
+      const reminderId = doneMatch[1];
+      try {
+        await markReminderDone(reminderId, userId);
+        return msg.reply(`✅ Reminder #${reminderId} marked as done! Nice work!`);
+      } catch (error) {
+        return msg.reply(`Sorry, I couldn't mark that reminder as done. Either it doesn't exist or it's not yours.`);
+      }
+    }
+    
+    // Delete reminder
+    const deleteMatch = content.match(/(?:delete|remove|cancel)\s+(\d+)/i);
+    if (deleteMatch) {
+      const reminderId = deleteMatch[1];
+      try {
+        await deleteReminder(reminderId, userId);
+        return msg.reply(`🗑️ Reminder #${reminderId} has been deleted.`);
+      } catch (error) {
+        return msg.reply(`Sorry, I couldn't delete that reminder. Either it doesn't exist or it's not yours.`);
+      }
+    }
+    
+    // Handle reminder creation with enhanced parser
+    if (content.toLowerCase().match(/(remind|todo|reminder|task|remember)/i)) {
+      const result = parser.parseReminder(content);
+      
+      if (!result.task) {
+        return msg.reply("I'm not sure what you want to be reminded about. Could you try again with something like 'remind me to call John tomorrow'?");
+      }
+      
+      if (!result.time) {
+        return handleIncompleteReminder(msg, result.task);
+      }
+      
+      // We have both task and time, create the reminder
+      const reminder = await createReminder(
+        msg.author.id,
+        msg.author.tag,
+        result.task,
+        result.time,
+        msg.channel.id
+      );
+      
+      return msg.reply(createReminderEmbed(reminder));
+    }
+  } catch (error) {
+    console.error('Error processing message:', error);
+    msg.reply('Sorry, I ran into a problem processing your message. Please try again.').catch(console.error);
   }
 
-  for (const pattern of reminderPatterns) {
-    const match = rawContent.match(pattern.regex);
-    if (match) {
-      try {
-        const parsed = pattern.parser(match);
-        let taskContent = parsed.task;
-        // Ensure task content is not empty after parsing
-        if (!taskContent || taskContent.trim() === "") {
-            // If task is empty, it might be a malformed command or only a time phrase
-            // Example: "remind me in 2 hours" -> task might be empty.
-            // For now, let's assume if task is empty, it's not a valid reminder.
-            continue; // Try next pattern
-        }
+});
 
-        const dueTime = parseTimeText(parsed.timeText); // Pass full timeText part
-        
-        // Use original casing for the task content
-        const finalTask = taskContent; 
-
-        const stmt = db.prepare("INSERT INTO reminders (userId, userTag, content, dueTime, channelId, createdAt) VALUES (?, ?, ?, ?, ?, cast(strftime('%s', 'now') as int))");
-        stmt.run(msg.author.id, msg.author.tag, finalTask, dueTime, msg.channel.id, function(err) {
-          if (err) {
-            console.error("DB insert error:", err.message);
-            msg.reply("Oops! I couldn't save that reminder. Something went wrong on my end. Please try again.");
-            return;
-          }
-          const reminderId = this.lastID;
-          let replyMessage = `On it! I'll remind you to: "${finalTask}"`;
-          if (dueTime) {
-            replyMessage += ` on ${format(new Date(dueTime * 1000), 'PPPPp')}.`; // e.g., "Tuesday, May 18th, 2025 at 3:30 AM"
-          } else {
-            replyMessage += `. I've added it to your list (no specific time).`;
-          }
-          replyMessage += ` (ID: ${reminderId})`;
-          // TODO: Add buttons here in Step 4
-          msg.reply(replyMessage).catch(console.error);
-        });
-        stmt.finalize();
-        return; // Reminder handled
-      } catch (error) {
-        console.error("Error processing reminder:", error, "Original message:", rawContent);
-        // Don't send a reply for every processing error, as it could be a non-reminder message partially matching a regex.
-        // Only reply if we were fairly certain it was an attempt at a reminder.
-        // For now, just log and continue to see if other patterns match.
+// Handle button interactions
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isButton()) return;
+  
+  const [action, actionDetail, reminderId] = interaction.customId.split('_');
+  
+  try {
+    if (action === 'done') {
+      await markReminderDone(reminderId, interaction.user.id);
+      await interaction.update({ content: '✅ Marked as done!', components: [], embeds: [] });
+    } else if (action === 'snooze') {
+      // Show snooze options
+      const row = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId(`snooze_30_${reminderId}`)
+            .setLabel('30 minutes')
+            .setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder()
+            .setCustomId(`snooze_60_${reminderId}`)
+            .setLabel('1 hour')
+            .setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder()
+            .setCustomId(`snooze_1440_${reminderId}`)
+            .setLabel('Tomorrow')
+            .setStyle(ButtonStyle.Secondary)
+        );
+      
+      await interaction.update({ content: 'How long would you like to snooze this reminder?', components: [row] });
+    } else if (action === 'snooze' && actionDetail) {
+      const snoozeMinutes = parseInt(actionDetail);
+      if (isNaN(snoozeMinutes)) {
+        return await interaction.update({ content: 'Invalid snooze time', components: [] });
       }
+      
+      try {
+        const result = await snoozeReminder(reminderId, interaction.user.id, snoozeMinutes);
+        const newTime = new Date(result.newDueTime * 1000);
+        await interaction.update({ 
+          content: `⏰ Reminder snoozed until ${format(newTime, 'EEEE, MMMM d, yyyy \'at\' h:mm a')}`, 
+          components: [], 
+          embeds: [] 
+        });
+      } catch (error) {
+        await interaction.update({ 
+          content: 'Sorry, I could not snooze that reminder. It may have been deleted or already completed.', 
+          components: [], 
+          embeds: [] 
+        });
+      }
+    } else if (action === 'delete') {
+      try {
+        await deleteReminder(reminderId, interaction.user.id);
+        await interaction.update({ content: '🗑️ Reminder deleted!', components: [], embeds: [] });
+      } catch (error) {
+        await interaction.update({ 
+          content: 'Sorry, I could not delete that reminder. It may have been already deleted or it\'s not yours.', 
+          components: [], 
+          embeds: [] 
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error handling button interaction:', error);
+    try {
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp({ content: 'There was an error processing your request.', ephemeral: true });
+      } else {
+        await interaction.reply({ content: 'There was an error processing your request.', ephemeral: true });
+      }
+    } catch (e) {
+      console.error('Error sending error message:', e);
     }
   }
 });
 
-// TODO: Implement interactionCreate for buttons (Step 4)
+// Setup scheduled reminders with node-cron
+function scheduleReminders() {
+  // Check for due reminders every minute
+  setInterval(() => {
+    const now = Math.floor(Date.now() / 1000);
+    const query = `
+      SELECT * FROM reminders 
+      WHERE status = 'pending' 
+      AND dueTime IS NOT NULL 
+      AND dueTime <= ? 
+      AND dueTime > ? - 60`; // Check for items due in the last minute
 
-// TODO: Setup node-cron scheduled tasks (Step 3 & 5)
+    db.all(query, [now, now], (err, reminders) => {
+      if (err) {
+        console.error('Error checking for due reminders:', err);
+        return;
+      }
+
+      reminders.forEach(async (reminder) => {
+        try {
+          const channel = await client.channels.fetch(reminder.channelId).catch(console.error);
+          if (!channel) return;
+
+          const user = await client.users.fetch(reminder.userId).catch(console.error);
+          const mention = user ? `<@${user.id}>` : 'Hey there';
+          
+          // Get a random motivational message
+          const motivation = await getMotivationalMessage().catch(() => null);
+          const motivationText = motivation ? `\n\n💡 ${motivation}` : '';
+          
+          // Send the reminder
+          const reminderEmbed = new EmbedBuilder()
+            .setColor('#ff9900')
+            .setTitle('⏰ Reminder!')
+            .setDescription(reminder.content)
+            .setFooter({ text: `ID: ${reminder.id}` })
+            .setTimestamp();
+            
+          const row = new ActionRowBuilder()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId(`done_${reminder.id}`)
+                .setLabel('Done ✅')
+                .setStyle(ButtonStyle.Success),
+              new ButtonBuilder()
+                .setCustomId(`snooze_${reminder.id}`)
+                .setLabel('Snooze ⏰')
+                .setStyle(ButtonStyle.Primary)
+            );
+          
+          await channel.send({ 
+            content: `${mention}${motivationText}`,
+            embeds: [reminderEmbed],
+            components: [row]
+          });
+          
+          // Mark as done
+          db.run('UPDATE reminders SET status = ? WHERE id = ?', ['done', reminder.id]);
+        } catch (error) {
+          console.error('Error processing due reminder:', error);
+        }
+      });
+    });
+  }, 60000); // Check every minute
+  
+  // Daily summary at 9 AM
+  cron.schedule('0 9 * * *', async () => {
+    console.log('Running daily reminder summary...');
+    
+    // Get all users with pending reminders
+    db.all(
+      'SELECT DISTINCT userId FROM reminders WHERE status = ? AND dueTime IS NOT NULL AND dueTime > ?',
+      ['pending', Math.floor(Date.now() / 1000)],
+      async (err, users) => {
+        if (err) return console.error('Error fetching users for daily summary:', err);
+        
+        for (const user of users) {
+          try {
+            const today = new Date();
+            const startOfDay = Math.floor(new Date(today.setHours(0, 0, 0, 0)).getTime() / 1000);
+            const endOfDay = Math.floor(new Date(today.setHours(23, 59, 59, 999)).getTime() / 1000);
+            
+            // Get today's reminders
+            db.all(
+              'SELECT * FROM reminders WHERE userId = ? AND status = ? AND dueTime >= ? AND dueTime <= ?',
+              [user.userId, 'pending', startOfDay, endOfDay],
+              async (err, reminders) => {
+                if (err || reminders.length === 0) return;
+                
+                try {
+                  const discordUser = await client.users.fetch(user.userId);
+                  if (!discordUser) return;
+                  
+                  let message = `🌅 **Good morning! Here are your reminders for today:**\n\n`;
+                  
+                  reminders.forEach((reminder, index) => {
+                    const dueTime = new Date(reminder.dueTime * 1000);
+                    message += `**${index + 1}.** ${reminder.content}\n⏰ ${format(dueTime, 'h:mm a')}\n\n`;
+                  });
+                  
+                  await discordUser.send(message);
+                } catch (error) {
+                  console.error('Error sending daily summary to user:', error);
+                }
+              }
+            );
+          } catch (error) {
+            console.error('Error processing user for daily summary:', error);
+          }
+        }
+      }
+    );
+  });
+  
+  // Weekly summary on Sunday at 6 PM
+  cron.schedule('0 18 * * 0', async () => {
+    console.log('Running weekly reminder summary...');
+    
+    // Get all users with pending reminders
+    db.all(
+      'SELECT DISTINCT userId FROM reminders WHERE status = ?',
+      ['pending'],
+      async (err, users) => {
+        if (err) return console.error('Error fetching users for weekly summary:', err);
+        
+        for (const user of users) {
+          try {
+            // Get all pending reminders
+            db.all(
+              'SELECT * FROM reminders WHERE userId = ? AND status = ? ORDER BY dueTime ASC',
+              [user.userId, 'pending'],
+              async (err, reminders) => {
+                if (err || reminders.length === 0) return;
+                
+                try {
+                  const discordUser = await client.users.fetch(user.userId);
+                  if (!discordUser) return;
+                  
+                  let message = `📅 **Weekly Summary**\n\nYou have ${reminders.length} pending reminder(s):\n\n`;
+                  
+                  // Group by time (today, this week, later)
+                  const now = Math.floor(Date.now() / 1000);
+                  const endOfToday = Math.floor(new Date(new Date().setHours(23, 59, 59, 999)).getTime() / 1000);
+                  const endOfWeek = Math.floor(new Date(new Date().setDate(new Date().getDate() + 7)).getTime() / 1000);
+                  
+                  const dueTodayReminders = reminders.filter(r => r.dueTime && r.dueTime <= endOfToday);
+                  const dueThisWeekReminders = reminders.filter(r => r.dueTime && r.dueTime > endOfToday && r.dueTime <= endOfWeek);
+                  const dueLaterReminders = reminders.filter(r => !r.dueTime || r.dueTime > endOfWeek);
+                  const overdueReminders = reminders.filter(r => r.dueTime && r.dueTime < now);
+                  
+                  if (overdueReminders.length > 0) {
+                    message += `**Overdue (${overdueReminders.length})**\n`;
+                    overdueReminders.slice(0, 3).forEach((reminder, index) => {
+                      message += `${index + 1}. ${reminder.content}\n`;
+                    });
+                    if (overdueReminders.length > 3) {
+                      message += `...and ${overdueReminders.length - 3} more\n`;
+                    }
+                    message += '\n';
+                  }
+                  
+                  if (dueTodayReminders.length > 0) {
+                    message += `**Due Today (${dueTodayReminders.length})**\n`;
+                    dueTodayReminders.slice(0, 3).forEach((reminder, index) => {
+                      message += `${index + 1}. ${reminder.content}\n`;
+                    });
+                    if (dueTodayReminders.length > 3) {
+                      message += `...and ${dueTodayReminders.length - 3} more\n`;
+                    }
+                    message += '\n';
+                  }
+                  
+                  if (dueThisWeekReminders.length > 0) {
+                    message += `**Coming This Week (${dueThisWeekReminders.length})**\n`;
+                    dueThisWeekReminders.slice(0, 3).forEach((reminder, index) => {
+                      const date = new Date(reminder.dueTime * 1000);
+                      message += `${index + 1}. ${reminder.content} (${format(date, 'EEE')})\n`;
+                    });
+                    if (dueThisWeekReminders.length > 3) {
+                      message += `...and ${dueThisWeekReminders.length - 3} more\n`;
+                    }
+                    message += '\n';
+                  }
+                  
+                  message += `\nType "show my reminders" to see all your reminders.`;
+                  
+                  await discordUser.send(message);
+                } catch (error) {
+                  console.error('Error sending weekly summary to user:', error);
+                }
+              }
+            );
+          } catch (error) {
+            console.error('Error processing user for weekly summary:', error);
+          }
+        }
+      }
+    );
+  });
+  
+  console.log('Scheduled daily (9 AM) and weekly (Sunday 6 PM) reminders.');
+}
 
 if (process.env.DISCORD_TOKEN) {
   client.login(process.env.DISCORD_TOKEN);
