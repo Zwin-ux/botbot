@@ -1,4 +1,5 @@
-# BotBot - Discord Reminder Bot
+# BotBot - Discord Listening Bot
+![assisntat](https://github.com/user-attachments/assets/f6f5567e-2fff-4742-8534-99cb10153d33)
 
 A minimal, message-driven Discord bot for tracking projects and pinging reminders—no slash commands.
 
@@ -55,9 +56,9 @@ This bot helps track personal and team projects. It accepts reminders and todos 
 ## Implementation Roadmap (MVP)
 
 1.  ✅ Set up Node.js project with discord.js, SQLite, and basic config.
-2.  Implement message listener for "remindme" and "todo" patterns (store to SQLite).
+2.   ✅ Implement message listener for "remindme" and "todo" patterns (store to SQLite).
 3.  Build daily/weekly scheduled reminder with `node-cron`.
-4.  Add message component buttons to reminders ("Done," "Snooze," "Delete").
+4.   Add message component buttons to reminders ("Done," "Snooze," "Delete").
 5.  Implement motivational nudge logic.
 6.  Polish regex, confirm informal language works, and refine UX.
 7.  Deploy (e.g., Glitch, Replit, Railway).
