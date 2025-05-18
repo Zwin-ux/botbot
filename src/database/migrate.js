@@ -181,6 +181,11 @@ class MigrationRunner {
   async runMigrations() {
     await this.init();
     const completed = await this.getCompletedMigrations();
+    const migrations = [
+      require('./migrations/initial'),
+      require('./migrations/categories'),
+      require('./migrations/guild_system'),
+    ];
     const migrationsDir = path.join(__dirname, 'migrations');
     
     // Get all migration files

@@ -11,6 +11,7 @@ import config from './config.js';
 import { initializeDatabase } from './database/index.js';
 import ContextManager from './contextManager.js';
 import EnhancedParser from './enhancedParser.js';
+import EnhancedParserExtended from './enhancedParserExtended.js';
 import MessageHandler from './handlers/messageHandler.js';
 import ReactionHandler from './handlers/reactionHandler.js';
 import NaturalMessageHandler from './handlers/naturalMessageHandler.js';
@@ -88,13 +89,28 @@ async function startBot() {
       db, 
       categoryManager, 
       reactionManager,
-      reminderManager,
+      guildManager,
       gameService
     } = await initializeDatabase();
     
+    // Initialize database managers
+    const ReminderManager = require('./database/reminderManager');
+    const ReminderManagerExtended = require('./database/reminderManagerExtended');
+    const reminderManagerBase = new ReminderManager(db);
+    const reminderManagerExtended = new ReminderManagerExtended(db);
+    const reminderManager = reminderManagerExtended || reminderManagerBase;
+    
     // Initialize core components
     const contextManager = new ContextManager(db);
-    const parser = new EnhancedParser();
+    // Use the extended parser for better natural language understanding
+    const parserBase = new EnhancedParser();
+    const parserExtended = new EnhancedParserExtended();
+    const parser = parserExtended || parserBase;
+    
+    // Initialize services
+    logger.info('Initializing services...');
+    const GuildNotificationService = require('./services/guildNotificationService.js');
+    const guildNotificationService = new GuildNotificationService(client, guildManager);
     
     // Initialize handlers
     logger.info('Initializing message handlers...');
@@ -104,7 +120,10 @@ async function startBot() {
       parser, 
       reminderManager, 
       categoryManager, 
-      reactionManager
+      reactionManager,
+      null, // standupHandler (not initialized yet)
+      null, // retroHandler (not initialized yet)
+      guildManager // pass the guild manager
     );
     
     const naturalMessageHandler = new NaturalMessageHandler(client, db);
@@ -164,10 +183,23 @@ async function startBot() {
     // Initialize reaction handler
     reactionHandler.initialize();
     
-    // Listen for when the client is ready
-    client.once('ready', () => {
-      console.log(`Logged in as ${client.user.tag}!`);
-      client.user.setActivity('for reminders (no /commands)', { type: 'WATCHING' });
+    // Set up event handlers
+    logger.info('Setting up event handlers...');
+    client.on('ready', () => {
+      logger.info(`Bot is ready! Logged in as ${client.user.tag}`);
+      client.user.setActivity('Remind me to...', { type: 'LISTENING' });
+      
+      // Set up interval to process guild reminders every minute
+      setInterval(async () => {
+        try {
+          const processedReminders = await guildNotificationService.processDueGuildReminders();
+          if (processedReminders.length > 0) {
+            logger.info(`Processed ${processedReminders.length} guild reminders`);
+          }
+        } catch (error) {
+          logger.error('Error processing guild reminders:', error);
+        }
+      }, 60000); // check every minute
       
       // Start scheduled jobs here if needed
       require('./bot').scheduleReminders();

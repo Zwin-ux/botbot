@@ -2,15 +2,26 @@
  * Enhanced message handler with support for categories and voting
  */
 class MessageHandler {
-  constructor(client, contextManager, parser, reminderManager, categoryManager, reactionManager, standupHandler, retroHandler) {
+  constructor(client, contextManager, parser, reminderManager, categoryManager, reactionManager, standupHandler, retroHandler, guildManager) {
+    // Check if we have the extended parser
+    const EnhancedParserExtended = require('../enhancedParserExtended');
+    const extendedParser = new EnhancedParserExtended();
     this.client = client;
     this.contextManager = contextManager;
-    this.parser = parser;
+    // Use extended parser if available, otherwise fall back to original parser
+    this.parser = extendedParser || parser;
     this.reminderManager = reminderManager;
     this.categoryManager = categoryManager;
     this.reactionManager = reactionManager;
     this.standupHandler = standupHandler;
     this.retroHandler = retroHandler;
+    this.guildManager = guildManager;
+    
+    // Initialize guild handler if guild manager is available
+    if (this.guildManager) {
+      const GuildHandler = require('./guildHandler');
+      this.guildHandler = new GuildHandler(client, guildManager, reminderManager);
+    }
     
     // Conversation state management (for interactive flows)
     this.conversationStates = new Map();
@@ -87,8 +98,14 @@ class MessageHandler {
         const handledByCategory = await catHandler.handleMessage(msg, content);
         if (handledByCategory) return;
         
+        // Try to handle guild commands if guild handler is available
+        if (this.guildHandler) {
+          const handledByGuild = await this.guildHandler.handleMessage(msg, content);
+          if (handledByGuild) return;
+        }
+        
         // Show reminders commands with enhanced filtering and natural language
-        const reminderListMatch = lowerContent.match(/(?:show|list|what.?s|my|view|see|check|display|get|what are (?:my|the)|do i have any)\s+(?:reminders?|todos?|tasks?|list|upcoming|pending|due)/i);
+        const reminderListMatch = lowerContent.match(/(?:show|list|what.?s|my|view|see|check|display|get|what are (?:my|the)|do i have any|show me|tell me about)\s+(?:reminders?|todos?|tasks?|list|upcoming|pending|due|stuff|things|assignments)/i);
         if (reminderListMatch) {
           // Check for category filter
           let categoryId = null;
@@ -153,8 +170,17 @@ class MessageHandler {
         }
         
         // Handle reminder creation with enhanced parser
-        if (content.toLowerCase().match(/(remind|todo|reminder|task|remember)/i)) {
-          return this.handleReminderCreation(msg, content);
+        if (content.toLowerCase().match(/(remind|todo|reminder|task|remember|don'?t forget|need to|have to|should|must)/i)) {
+          // Use the new ReminderFunctions module
+          const ReminderFunctions = require('./reminderFunctions');
+          return ReminderFunctions.handleReminderCreation(
+            this.reminderManager,
+            this.categoryManager,
+            this.parser,
+            this.conversationStates,
+            msg,
+            content
+          );
         }
       } catch (error) {
         console.error('Error processing message:', error);
@@ -170,40 +196,65 @@ class MessageHandler {
   async showHelp(msg) {
     const helpEmbed = {
       color: 0x0099ff,
-      title: 'How to Use Me',
-      description: 'Talk to me naturally. No special commands needed.',
+      title: 'Bot Commands and Features',
+      description: "I understand natural language! Here's a breakdown of what I can do and some examples:",
       fields: [
         {
-          name: 'Reminders',
-          value: 'Set a reminder: "remind me to call John tomorrow at 3pm"\n' +
-                 'Recurring: "remind me to drink water every day at 9am"\n' +
-                 'In X time: "remind me in 30 minutes to check the oven"'
+          name: 'Reminders & Tasks',
+          value: '**Setting Reminders/Tasks:**\n' +
+                 '- "remind me to call John tomorrow at 3pm"\n' +
+                 '- "todo buy milk for tomorrow morning"\n' +
+                 '- "remember to check the oven in 20 minutes"\n' +
+                 '- "task: send email next Monday"\n' +
+                 '**Recurring Reminders:**\n' +
+                 '- "remind me to drink water every day at 9am"\n' +
+                 '- "set a reminder for standup every weekday at 10"\n' +
+                 '**Viewing Reminders/Tasks:**\n' +
+                 '- "show my todos"\n' +
+                 '- "what are my reminders for today?"\n' +
+                 '- "list my tasks for this week"\n' +
+                 '- "do I have anything due tomorrow?"\n' +
+                 '**Managing Reminders/Tasks:**\n' +
+                 '- "done 1" (to complete the first task in the list)\n' +
+                 '- "complete task 3"\n' +
+                 '- "delete reminder 2"\n' +
+                 '- "remove todo 4"\n' +
+                 '- "snooze task 1 for 1 hour"\n' +
+                 '- "delay reminder 2 by 30 minutes"'
         },
         {
-          name: 'To-Do List',
-          value: 'Add: "todo buy milk"\n' +
-                 'View: "show my todos"\n' +
-                 'Complete: "done 1" or click Done button\n' +
-                 'Delete: "delete 2" or click Delete button\n' +
-                 'Snooze: "snooze 1 for 1 hour" or click Snooze button'
+          name: 'Categories',
+          value: '**Creating & Using Categories:**\n' +
+                 '- "create category :work: Work Projects"\n' +
+                 '- "new category :house: Home Chores"\n' +
+                 '- "todo buy milk :shopping_cart:" (adds to existing or prompts to create)\n' +
+                 '- "remind me to finish report :work: by Friday"\n' +
+                 '**Viewing Categories & Categorized Tasks:**\n' +
+                 '- "show categories"\n' +
+                 '- "list my tags"\n' +
+                 '- "show my :shopping_cart: todos"\n' +
+                 '- "what work tasks do I have?" (if "Work" category exists)'
         },
         {
           name: 'Games',
-          value: 'Start a game: "start emoji race" or "start trivia"\n' +
-                 'Join a game: "join"\n' +
-                 'Available games: emoji race, trivia, word chain, guess the number\n' +
-                 'End game: "end game" (moderators only)'
+          value: '**Starting & Joining Games:**\n' +
+                 '- "start emoji race"\n' +
+                 '- "let\'s play emoji race"\n' +
+                 '- "join game"\n' +
+                 '_(Currently, only Emoji Race is available. More games coming soon!)_'
         },
         {
-          name: 'Quick Examples',
-          value: 'remind me to water plants in 1 hour\n' +
-                 'todo finish project by friday\n' +
-                 'show my reminders\n' +
-                 'start trivia'
+          name: 'General Help',
+          value: '**Asking for Help:**\n' +
+                 '- "help"\n' +
+                 '- "what can you do?"\n' +
+                 '- "show me commands"\n' +
+                 '- "how do I set a reminder with a category?"\n' +
+                 '- "can you show examples for tasks?"'
         }
       ],
       footer: {
-        text: 'Type your request like you would say it to a person.'
+        text: "Tip: Don't worry about exact phrasing. I'll do my best to understand!"
       }
     };
 
@@ -211,65 +262,23 @@ class MessageHandler {
   }
 
   /**
-   * Handle reminder creation
-   * @param {Message} msg - Discord message
-   * @param {string} content - Message content
-   */
-  async handleReminderCreation(msg, content) {
-    const result = this.parser.parseReminder(content);
-    
-    if (!result.task) {
-      return msg.reply("I'm not sure what you want to be reminded about. Could you try again with something like 'remind me to call John tomorrow'?");
-    }
-    
-    if (!result.time) {
-      return this.handleIncompleteReminder(msg, result.task);
-    }
-    
-    // Look for category emoji in the message
-    const emojiMatch = content.match(/\p{Emoji_Presentation}|\p{Extended_Pictographic}/gu);
-    let categoryId = null;
-    
-    if (emojiMatch) {
-      // Check if any of the emojis match a category
-      for (const emoji of emojiMatch) {
-        const category = await this.categoryManager.getCategoryByEmoji(emoji);
-        if (category) {
-          categoryId = category.id;
-          break;
-        }
-      }
-    }
-    
-    // If no category was found but we have emojis, ask user if they want to create one
-    if (!categoryId && emojiMatch && emojiMatch.length > 0) {
-      this.conversationStates.set(msg.author.id, { 
         state: 'AWAITING_CATEGORY',
-        task: result.task,
-        time: result.time,
-        suggestedEmoji: emojiMatch[0]
+        data: {
+          task: result.task,
+          time: result.time,
+          emoji: emojiMatch[0],
+          priority: result.priority || 0,
+          target: result.target
+        }
       });
-      
+    
       return msg.reply(`I noticed you used the emoji ${emojiMatch[0]}. Would you like to:\n1. Create a new category with this emoji\n2. Use an existing category\n3. Don't use a category\n\nReply with the number or your choice.`);
     }
-    
-    // Create the reminder with the category if available
-    const reminder = await this.reminderManager.createReminder(
-      msg.author.id,
-      msg.author.tag,
-      result.task,
-      result.time,
-      msg.channel.id,
-      categoryId
-    );
-    
-    // Confetti/celebratory feedback for first reminder creation
-    return msg.reply('🎊 Reminder created! I’ll remind you when it’s time.');
   }
-
-  /**
-   * Handle incomplete reminder (missing time)
-   * @param {Message} msg - Discord message
+  
+  // Handle non-self targets like team or channels if supported
+  if (result.target && !result.target.self) {
+    return this.handleTargetedReminder(msg, result, categoryId);
    * @param {string} task - Task content
    */
   async handleIncompleteReminder(msg, task) {

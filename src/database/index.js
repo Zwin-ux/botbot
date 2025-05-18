@@ -10,6 +10,7 @@ import config from '../config.js';
 import CategoryManager from './categoryManager.js';
 import ReactionManager from './reactionManager.js';
 import ReminderManager from './reminderManager.js';
+import GuildManager from './guildManager.js';
 
 // Import services
 import GameService from '../services/gameService.js';
@@ -88,6 +89,7 @@ export async function initializeDatabase() {
     const categoryManager = new CategoryManager(db);
     const reactionManager = new ReactionManager(db);
     const reminderManager = new ReminderManager(db);
+    const guildManager = new GuildManager(db);
     
     // Initialize services
     const gameService = new GameService(db);
@@ -116,11 +118,10 @@ export async function initializeDatabase() {
     
     return {
       db,
-      // Managers
       categoryManager,
       reactionManager,
       reminderManager,
-      // Services
+      guildManager,
       gameService,
       // Helper method for transactions
       runInTransaction: async (fn) => {
