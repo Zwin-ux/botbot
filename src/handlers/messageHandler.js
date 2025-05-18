@@ -170,43 +170,40 @@ class MessageHandler {
   async showHelp(msg) {
     const helpEmbed = {
       color: 0x0099ff,
-      title: 'Bot Commands',
-      description: 'Here are the available commands. You can type them naturally.',
+      title: 'How to Use Me',
+      description: 'Talk to me naturally. No special commands needed.',
       fields: [
-        { 
+        {
           name: 'Reminders',
-          value: '`remind me to [task] [time]`\nExample: `remind me to call John tomorrow at 3pm`\n\n`todo [task]`\nExample: `todo buy milk`\n\n`show my reminders` - View all reminders\n`what\'s due today?` - Today\'s tasks'
+          value: 'Set a reminder: "remind me to call John tomorrow at 3pm"\n' +
+                 'Recurring: "remind me to drink water every day at 9am"\n' +
+                 'In X time: "remind me in 30 minutes to check the oven"'
         },
         {
-          name: 'Standups',
-          value: '`setup standup in #channel at 9:30am` - Daily standup\n' +
-                 '`start standup` - Begin a standup now\n' +
-                 '`list standups` - View scheduled standups\n' +
-                 '`standup summary` - Get latest summary',
+          name: 'To-Do List',
+          value: 'Add: "todo buy milk"\n' +
+                 'View: "show my todos"\n' +
+                 'Complete: "done 1" or click Done button\n' +
+                 'Delete: "delete 2" or click Delete button\n' +
+                 'Snooze: "snooze 1 for 1 hour" or click Snooze button'
         },
         {
-          name: 'Retrospectives',
-          value: '`schedule retro weekly in #channel on fridays` - Weekly retro\n' +
-                 '`start retro` - Begin a retro now\n' +
-                 '`list retros` - Show scheduled retros\n' +
-                 '`retro summary` - Get latest insights',
+          name: 'Games',
+          value: 'Start a game: "start emoji race" or "start trivia"\n' +
+                 'Join a game: "join"\n' +
+                 'Available games: emoji race, trivia, word chain, guess the number\n' +
+                 'End game: "end game" (moderators only)'
         },
         {
-          name: 'Categories',
-          value: '`create category :emoji: Name` - New category\n' +
-                 '`show my categories` - Your categories\n' +
-                 '`add to work` - Categorize a task\n' +
-                 '`filter by work` - View by category',
-        },
-        {
-          name: 'Need Help?',
-          value: '`help` - Show this message\n' +
-                 '`hi` or `ping` - Check if I\'m online\n' +
-                 '`suggestions` - Get command ideas',
+          name: 'Quick Examples',
+          value: 'remind me to water plants in 1 hour\n' +
+                 'todo finish project by friday\n' +
+                 'show my reminders\n' +
+                 'start trivia'
         }
       ],
       footer: {
-        text: '💡 Try natural language! Example: "Remind me to submit the report tomorrow at 2pm"'
+        text: 'Type your request like you would say it to a person.'
       }
     };
 

@@ -66,12 +66,13 @@ class Onboarding {
       .setColor('#5865F2')
       .setDescription(`Thanks for inviting me to **${guild.name}**!\n\nLet's get your team set up in less than a minute. I'll walk you through the basics step by step.`)
       .addFields(
-        { name: '1️⃣ Agent Channel', value: 'A private channel for you and trusted admins is being set up.' },
-        { name: '2️⃣ Reminders & Standups', value: 'You can create reminders and schedule standups or retros right away.' },
-        { name: '3️⃣ Games & More', value: 'Fun games and analytics are just a command away.' },
-        { name: 'Need Help?', value: 'Type `help` or `what can I do here?` in any channel, anytime.' }
+        { name: 'Getting Started', value: 'Just type what you want to do. No special commands needed.' },
+        { name: 'Set a Reminder', value: 'Type: "remind me to call John tomorrow at 3pm" or "remind me in 30 minutes to check the oven". Recurring reminders work too.' },
+        { name: 'To-Do List', value: 'Add: "todo buy milk"\nView: "show my todos"\nComplete: "done 1" or click Done\nDelete: "delete 2" or click Delete' },
+        { name: 'Games', value: 'Start: "start trivia" or "start emoji race"\nJoin: "join"\nEnd: "end game" (moderators)' },
+        { name: 'Examples', value: 'todo finish project by friday\nremind me to water plants in 1 hour\nshow my reminders' }
       )
-      .setFooter({ text: 'You can customize everything later. Let’s get started!' });
+      .setFooter({ text: 'Type your request like you would say it to a person.' });
   }
 
   // Optionally, add more step-by-step onboarding flows here

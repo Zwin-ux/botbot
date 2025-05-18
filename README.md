@@ -47,6 +47,41 @@ This bot enhances team collaboration and productivity. It accepts reminders and 
 
 ## Features
 
+### 🎮 Games
+
+BotBot includes fun, interactive games to engage your server members. All games support natural language commands and include rate limiting to prevent spam.
+
+#### Available Games
+
+1. **Emoji Race**
+   - Race to type the correct emoji sequence as fast as you can
+   - Start with: `start emoji race`
+   - Compete against others for the fastest time
+
+2. **Story Builder**
+   - Collaborative storytelling where each player adds one word at a time
+   - Start with: `start story builder`
+   - Watch as your story takes unexpected turns
+
+3. **Who Said It**
+   - Guess which server member said a particular quote
+   - Start with: `start who said it`
+   - Test your knowledge of your server members
+
+### Game Commands
+
+- `start [game name]` - Start a new game (e.g., `start emoji race`)
+- `join` - Join the current game in your channel
+- `end game` - End the current game (game starter or admin only)
+- `game help` - Show game commands and descriptions
+
+### Game Rules & Tips
+
+- Games are limited to 3 starts per minute per user to prevent spam
+- Only the game starter or server admins can end a game
+- Some games may have player limits (check game-specific help for details)
+- Use reactions to interact with game prompts when available
+
 ### Reminder System
 
 - **Natural Language Processing**: Type a message like `remind me to finish report tomorrow` or `todo add meeting notes`.
@@ -71,22 +106,10 @@ This bot enhances team collaboration and productivity. It accepts reminders and 
 
 ## Command Reference
 
-### Reminder Commands
+##### 🤖 How I Can Help You
 
-- `remind me to [task] [time]` - Create a new reminder
-  - Example: `remind me to call John tomorrow at 3pm`
-- `todo [task]` - Create a quick todo without a specific time
-  - Example: `todo update project documentation`
-- `show my reminders` - View all your reminders
-- `show today's reminders` - See just today's tasks
-- `show overdue reminders` - View all overdue reminders
-- `done [id]` - Mark a reminder as done
-  - Example: `done 3`
-- `delete [id]` - Delete a reminder
-  - Example: `delete 2`
-- `snooze [id] [time]` - Snooze a reminder
-  - Example: `snooze 1 30m` (snoozes for 30 minutes)
-- `subscribe 🚀` - Subscribe to a category
+I’m your friendly reminder and to-do buddy! Just chat with me naturally—no special commands or symbols needed.
+
 
 ### Standup Commands
 
@@ -142,19 +165,20 @@ This bot enhances team collaboration and productivity. It accepts reminders and 
 
 ## Implementation Status
 
-1. ✅ Core reminder system with natural language processing
-2. ✅ Interactive controls (buttons, emoji reactions)
-3. ✅ Categories and voting functionality
-4. ✅ Daily/weekly scheduled reminders with `node-cron`
-5. ✅ Daily standup meeting support
-6. ✅ Team retrospective functionality
-7. ✅ Personal summary notifications
-8. ✅ Interactive Games:
-   - ✅ Emoji Race
-   - ✅ Story Builder
-   - ✅ Who Said It?
-9. ⏳ Advanced analytics and reporting
-10. ⏳ External integrations (GitHub, Jira, etc.)
+1. ✅ Core game system with rate limiting and input validation
+2. ✅ Multiple game types (Emoji Race, Story Builder, Who Said It)
+3. ✅ Game help and documentation
+4. ✅ Core reminder system with natural language processing
+5. ✅ Interactive controls (buttons, emoji reactions)
+6. ✅ Categories and voting functionality
+7. ✅ Daily/weekly scheduled reminders with `node-cron`
+8. ✅ Daily standup meeting support
+9. ✅ Team retrospective functionality
+10. ✅ Personal summary notifications
+11. ✅ Message persistence across restarts
+12. ✅ Error handling and logging
+13. ✅ Comprehensive test coverage
+14. ✅ Documentation and examples
 
 ## Usage Tips
 
