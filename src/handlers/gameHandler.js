@@ -1,6 +1,19 @@
 const GameManager = require('../features/games/gameManager');
 const { getSetupSuggestion } = require('../features/setupSuggest');
-const { RateLimiter } = require('discord.js');
+const { 
+  RateLimiter, 
+  EmbedBuilder, 
+  ActionRowBuilder, 
+  ButtonBuilder, 
+  ButtonStyle 
+} = require('discord.js');
+const { 
+  COLORS, 
+  EMOJIS, 
+  createGameEmbed, 
+  createCountdownEmbed, 
+  createPlayerListEmbed 
+} = require('../utils/embedUtils');
 
 // Rate limiting configuration
 const RATE_LIMIT = {
@@ -121,42 +134,99 @@ class GameHandler {
    * @param {Message} msg - The message object
    */
   async handleJoinGame(msg) {
-    const game = this.gameManager.activeGames.get(msg.channel.id);
+    const game = this.gameManager.getGame(msg.channel.id);
     if (!game) {
-      return msg.reply('There is no active game in this channel. Start one with "start [game name]"');
+      const embed = createGameEmbed(null, {
+        title: 'No Active Game',
+        description: 'There\'s no active game in this channel. Start one with `start game`!',
+        color: COLORS.WARNING,
+        emoji: EMOJIS.ERROR
+      });
+      return msg.reply({ embeds: [embed] });
     }
     
     try {
       await game.addPlayer(msg.author);
-      return msg.reply(`${msg.author.username} has joined the game!`);
+      
+      // Get updated player list
+      const players = Array.from(game.players?.values() || []);
+      const playerListEmbed = createPlayerListEmbed(
+        players,
+        'Player Joined'
+      );
+      
+      return msg.reply({ 
+        content: `🎉 ${msg.author} has joined the game!`,
+        embeds: [playerListEmbed]
+      });
     } catch (error) {
-      console.error('Error adding player to game:', error);
-      return msg.reply('Failed to join the game. Please try again.');
+      console.error('Error joining game:', error);
+      const embed = createGameEmbed(null, {
+        title: 'Error',
+        description: `Couldn't join the game: ${error.message}`,
+        color: COLORS.DANGER,
+        emoji: EMOJIS.ERROR
+      });
+      return msg.reply({ embeds: [embed] });
     }
   }
 
   /**
    * End the current game in the channel
-   * @param {Message} msg - The message object
+   * @param {Message} msg - The message that triggered the command
    */
   async endGame(msg) {
-    const game = this.gameManager.activeGames.get(msg.channel.id);
+    const game = this.gameManager.getGame(msg.channel.id);
     if (!game) {
-      return msg.reply('There is no active game in this channel.');
+      const embed = createGameEmbed(null, {
+        title: 'No Active Game',
+        description: 'There\'s no active game in this channel.',
+        color: COLORS.WARNING,
+        emoji: EMOJIS.ERROR
+      });
+      return msg.reply({ embeds: [embed] });
     }
     
     // Check if the user is the game starter or has admin permissions
-    if (msg.author.id !== game.startedBy && !msg.member.permissions.has('MANAGE_MESSAGES')) {
-      return msg.reply('Only the game starter or an admin can end the game.');
+    if (msg.member && !msg.member.permissions.has('MANAGE_MESSAGES')) {
+      const embed = createGameEmbed(null, {
+        title: 'Permission Denied',
+        description: 'Only moderators can end the game.',
+        color: COLORS.DANGER,
+        emoji: EMOJIS.ERROR
+      });
+      return msg.reply({ embeds: [embed] });
     }
     
     try {
-      await game.end();
-      this.gameManager.activeGames.delete(msg.channel.id);
-      return msg.reply('Game ended.');
+      const gameType = game.constructor.name.toLowerCase();
+      const gameName = {
+        'emojirace': 'Emoji Race',
+        'storybuilder': 'Story Builder',
+        'whosaidit': 'Who Said It'
+      }[gameType] || 'game';
+      
+      // End the game
+      this.gameManager.endGame(msg.channel.id);
+      
+      // Create a game over embed
+      const embed = createGameEmbed(gameType, {
+        title: 'Game Ended',
+        description: `The ${gameName} game has been ended by ${msg.author}.`,
+        color: COLORS.NEUTRAL,
+        emoji: EMOJIS.ENDED
+      });
+      
+      return msg.reply({ embeds: [embed] });
     } catch (error) {
       console.error('Error ending game:', error);
-      return msg.reply('Failed to end the game. Please try again.');
+      const embed = createGameEmbed(null, {
+        title: 'Error',
+        description: `Failed to end the game: ${error.message}`,
+        color: COLORS.DANGER,
+        emoji: EMOJIS.ERROR
+      });
+      return msg.reply({ embeds: [embed] });
     }
   }
 
@@ -167,33 +237,43 @@ class GameHandler {
   async showGameHelp(msg) {
     const helpEmbed = {
       color: 0x0099ff,
-      title: 'Game Commands',
-      description: 'Here are the available games and commands:',
+      title: '🎮 Available Games',
+      description: 'Start any game by typing `start [game name]`',
       fields: [
         {
-          name: 'Start a Game',
-          value: 'start [game name] - Start a new game\n' +
-                 'Available games: emoji race, story builder, who said it'
+          name: 'Emoji Race',
+          value: '`start emoji race` - Race to be the first to react with the correct emoji!',
+          inline: true
         },
         {
-          name: 'Game Commands',
-          value: 'join - Join the current game\n' +
-                 'end game - End the current game (game starter or admin only)'
+          name: 'Story Builder',
+          value: '`start story` - Collaborate to build a story one sentence at a time!',
+          inline: true
         },
         {
-          name: 'Game Descriptions',
-          value: '• Emoji Race: Race to type the correct emoji sequence\n' +
-                 '• Story Builder: Take turns building a story one word at a time\n' +
-                 '• Who Said It: Guess which server member said a quote'
+          name: 'Who Said It?',
+          value: '`start who said it` - Guess who said the famous quote!',
+          inline: true
+        },
+        {
+          name: 'Game Controls',
+          value: '`join` - Join a game in progress\n' +
+                 '`end game` - End the current game (moderators only)\n' +
+                 '`games` - Show this help message',
         }
-      ],
-      timestamp: new Date(),
-      footer: { text: 'Have fun playing!' }
+      ]
     };
-
-    return msg.channel.send({ embeds: [helpEmbed] });
+    
+    // Remove all ! from help text and examples for natural language
+    helpEmbed.description = 'Start any game by typing something like "start emoji race" or "start story".';
+    helpEmbed.fields = helpEmbed.fields.map(f => ({ ...f, value: f.value.replace(/`!?(start|join|end|games)[^`]*`/g, match => match.replace(/!/g, '')) }));
+    msg.channel.send({ embeds: [helpEmbed] });
   }
 
+  /**
+   * Handle incoming messages for game commands
+   * @param {Message} msg - The message object
+   */
   async handleMessage(msg) {
     // Don't process bot messages
     if (msg.author.bot) return;
@@ -226,11 +306,24 @@ class GameHandler {
             return this.startWhoSaidIt(msg);
             
           default:
-            const { embed, row } = getSetupSuggestion('game');
+            const embed = createGameEmbed(null, {
+              title: 'Game Not Found',
+              description: 'I couldn\'t find that game. Here are the available games:',
+              color: COLORS.WARNING,
+              emoji: EMOJIS.ERROR
+            });
+            
+            const row = new ActionRowBuilder()
+              .addComponents(
+                new ButtonBuilder()
+                  .setLabel('View Games')
+                  .setStyle(ButtonStyle.Primary)
+                  .setCustomId('view_games')
+              );
+              
             return msg.reply({ 
-              content: 'I couldn\'t find that game. Here are the available games:', 
-              embeds: [embed], 
-              components: [row] 
+              embeds: [embed],
+              components: [row]
             });
         }
       }
@@ -266,47 +359,148 @@ class GameHandler {
     }
   }
   
+  /**
+   * Start an emoji race game
+   * @param {Message} msg - The message that triggered the game
+   */
   async startEmojiRace(msg) {
     try {
+      // Create a starting embed
+      const startingEmbed = createGameEmbed('emoji-race', {
+        title: 'Starting Emoji Race',
+        description: 'Get ready to race! The game will begin in a moment...',
+        emoji: EMOJIS.WAITING
+      });
+      
+      const startingMessage = await msg.reply({ embeds: [startingEmbed] });
+      
+      // Start the game
       await this.gameManager.startGame(msg.channel, 'emoji-race', {
         chainLength: 3, // Default to 3 emojis in chain
         timeLimit: 30000 // 30 seconds
       });
+      
       this.cooldowns.set(msg.channel.id, Date.now());
-      // Confetti/celebratory feedback for first-time game start
-      msg.reply('🎉 Emoji Race started! Get ready to race!');
+      
+      // Update with join instructions
+      const joinEmbed = createGameEmbed('emoji-race', {
+        title: 'Emoji Race',
+        description: 'Type `join` to join the race!',
+        emoji: EMOJIS.JOIN,
+        fields: [
+          { name: 'How to Play', value: 'Be the first to type the emoji sequence correctly!' },
+          { name: 'Time Limit', value: '30 seconds per round' }
+        ]
+      });
+      
+      return startingMessage.edit({ embeds: [joinEmbed] });
     } catch (error) {
-      msg.reply(`Couldn't start Emoji Race: ${error.message}`);
+      console.error('Error starting emoji race:', error);
+      const errorEmbed = createGameEmbed('emoji-race', {
+        title: 'Error',
+        description: `Couldn't start Emoji Race: ${error.message}`,
+        color: COLORS.DANGER,
+        emoji: EMOJIS.ERROR
+      });
+      return msg.reply({ embeds: [errorEmbed] });
     }
   }
   
+  /**
+   * Start a story builder game
+   * @param {Message} msg - The message that triggered the game
+   */
   async startStoryBuilder(msg) {
     try {
+      // Create a starting embed
+      const startingEmbed = createGameEmbed('story-builder', {
+        title: 'Starting Story Builder',
+        description: 'Get ready to build an amazing story together!',
+        emoji: EMOJIS.WAITING
+      });
+      
+      const startingMessage = await msg.reply({ embeds: [startingEmbed] });
+      
+      // Start the game
       await this.gameManager.startGame(msg.channel, 'story-builder', {
         minSentences: 5,
         maxSentences: 10,
         turnTime: 60000 // 1 minute per turn
       });
+      
       this.cooldowns.set(msg.channel.id, Date.now());
-      // Confetti/celebratory feedback for first-time game start
-      msg.reply('🎉 Story Builder started! Let the creativity flow!');
+      
+      // Update with join instructions
+      const joinEmbed = createGameEmbed('story-builder', {
+        title: 'Story Builder',
+        description: 'Type `join` to join the story!',
+        emoji: EMOJIS.JOIN,
+        fields: [
+          { name: 'How to Play', value: 'Take turns adding to the story, one sentence at a time!' },
+          { name: 'Time Limit', value: '1 minute per turn' },
+          { name: 'Story Length', value: '5-10 sentences' }
+        ]
+      });
+      
+      return startingMessage.edit({ embeds: [joinEmbed] });
     } catch (error) {
-      msg.reply(`Couldn't start Story Builder: ${error.message}`);
+      console.error('Error starting story builder:', error);
+      const errorEmbed = createGameEmbed('story-builder', {
+        title: 'Error',
+        description: `Couldn't start Story Builder: ${error.message}`,
+        color: COLORS.DANGER,
+        emoji: EMOJIS.ERROR
+      });
+      return msg.reply({ embeds: [errorEmbed] });
     }
   }
   
+  /**
+   * Start a Who Said It game
+   * @param {Message} msg - The message that triggered the game
+   */
   async startWhoSaidIt(msg) {
     try {
+      // Create a starting embed
+      const startingEmbed = createGameEmbed('who-said-it', {
+        title: 'Starting Who Said It?',
+        description: 'Get ready to test your knowledge of your server members!',
+        emoji: EMOJIS.WAITING
+      });
+      
+      const startingMessage = await msg.reply({ embeds: [startingEmbed] });
+      
+      // Start the game
       await this.gameManager.startGame(msg.channel, 'who-said-it', {
         timeLimit: 45000, // 45 seconds
         hintDelay: 15000, // 15 seconds
         maxHints: 3
       });
+      
       this.cooldowns.set(msg.channel.id, Date.now());
-      // Confetti/celebratory feedback for first-time game start
-      msg.reply('🎉 Who Said It? started! Guess the quote!');
+      
+      // Update with join instructions
+      const joinEmbed = createGameEmbed('who-said-it', {
+        title: 'Who Said It?',
+        description: 'Type `join` to join the game!',
+        emoji: EMOJIS.JOIN,
+        fields: [
+          { name: 'How to Play', value: 'Guess which server member said the quote!' },
+          { name: 'Time Limit', value: '45 seconds per round' },
+          { name: 'Hints', value: 'Get hints after 15 seconds' }
+        ]
+      });
+      
+      return startingMessage.edit({ embeds: [joinEmbed] });
     } catch (error) {
-      msg.reply(`Couldn't start Who Said It?: ${error.message}`);
+      console.error('Error starting Who Said It:', error);
+      const errorEmbed = createGameEmbed('who-said-it', {
+        title: 'Error',
+        description: `Couldn't start Who Said It?: ${error.message}`,
+        color: COLORS.DANGER,
+        emoji: EMOJIS.ERROR
+      });
+      return msg.reply({ embeds: [errorEmbed] });
     }
   }
   
