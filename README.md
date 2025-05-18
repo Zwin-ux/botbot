@@ -1,4 +1,5 @@
-# BotBot - Discord Reminder Bot
+# BotBot - Discord Listening Bot
+![assisntat](https://github.com/user-attachments/assets/f6f5567e-2fff-4742-8534-99cb10153d33)
 
 A comprehensive Discord bot for team productivity, featuring reminders, standups, retrospectives, and project management tools.
 
