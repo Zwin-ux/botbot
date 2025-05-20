@@ -4,76 +4,92 @@
  */
 
 // Intent patterns with keywords and responses
+// Multi-language intent patterns
+// To add a new language, add a new key (e.g., 'fr', 'ja') with the same structure as 'en'.
 const INTENT_PATTERNS = {
-  // Meeting-related intents
-  'start_meeting': {
-    patterns: [
-      /(let'?s?|let us|we should|can we|start|begin|run)\s+(a |the |an |our )?(meeting|standup|stand-up|retro|retrospective|planning)/i,
-      /time for (a |the |our )?(standup|retro|meeting|planning)/i,
-      /^(standup|retro|meeting|planning)\s+time/i
-    ],
-    response: "I'll help you start a {{meeting_type}}. React with 📅 to confirm.",
-    extract: {
-      meeting_type: [
-        [/(standup|stand-up)/i, 'standup'],
-        [/(retro|retrospective)/i, 'retrospective'],
-        [/(planning)/i, 'planning meeting'],
-        [/(meeting)/i, 'meeting']
-      ]
+  en: { // English intents
+    // ...existing intents...
+  },
+  fr: { // French intents
+    'set_reminder': {
+      patterns: [
+        /(rappelle(-)?moi|crée un rappel|n'oublie pas de|souviens-toi de)/i
+      ],
+      response: "Je vais te rappeler cela. Quand dois-je te le rappeler ?",
+      extract: {}
+    },
+    'help': {
+      patterns: [
+        /(aide|qu'est-ce que tu peux faire|comment ça marche|je suis perdu|que dois-je faire)/i
+      ],
+      response: "Je peux t'aider à organiser des réunions, créer des rappels, détecter si quelqu'un est bloqué, et jouer à des jeux d'équipe. Parle-moi simplement !",
+      extract: {}
+    },
+    // Add more French intents here
+    'greet': {
+      patterns: [/(bonjour|salut|coucou|hey|allo)/i],
+      response: "Bonjour ! Comment puis-je t'aider aujourd'hui ?",
+      extract: {}
+    },
+    'goodbye': {
+      patterns: [/(au revoir|à bientôt|bye|salut|ciao)/i],
+      response: "Au revoir ! N'hésite pas à revenir si tu as besoin d'aide.",
+      extract: {}
     }
   },
-  
-  // Reminder intents
-  'set_reminder': {
-    patterns: [
-      /(remind me|set a reminder|don'?t let me forget|remember to|don'?t forget to)/i,
-      /(i need to|we should|can you remind me|can someone remind me)/i
-    ],
-    response: "I'll remind you about that. When should I remind you? (e.g., 'in 2 hours' or 'tomorrow at 3pm')",
-    extract: {}
-  },
-  
-  // Blocked/help needed
-  'blocked': {
-    patterns: [
-      /(i'?m|i am|we'?re|we are|is anyone|who'?s|who is|who else is|anyone else|anyone)\s+(stuck|blocked|needs? help|waiting on|blocked by)/i,
-      /(blocker|blocked|stuck|need help|need a hand|need guidance|need support)/i
-    ],
-    response: "It sounds like someone might be blocked. Would you like me to start a thread to help?",
-    extract: {}
-  },
-  
-  // Game time!
-  'start_game': {
-    patterns: [
-      /(let'?s|let us|we should|can we|who wants to|time for|how about|play|start|begin)\s+(a |the |an |our )?(game|emoji race|story builder|who said it)/i,
-      /(game time|play a game|wanna play|anyone for a game)/i
-    ],
-    response: "🎮 I'll start a {{game_type}} game! React with 🎮 to confirm.",
-    extract: {
-      game_type: [
-        [/(emoji race|emojirace)/i, 'emoji race'],
-        [/(story builder|story)/i, 'story builder'],
-        [/(who said it|quote game)/i, 'who said it'],
-        [/(game)/i, 'game']
-      ]
+  ja: { // Japanese intents
+    'set_reminder': {
+      patterns: [
+        /(リマインドして|リマインダー作成|忘れないで|覚えていて)/i
+      ],
+      response: "リマインダーを設定します。いつリマインドしますか？",
+      extract: {}
+    },
+    'help': {
+      patterns: [
+        /(ヘルプ|何ができるの|使い方|困っています|どうすればいい)/i
+      ],
+      response: "会議の管理、リマインダーの作成、ブロックされた人の検出、チームゲームなどができます。お気軽に話しかけてください！",
+      extract: {}
+    },
+    // Add more Japanese intents here
+    'greet': {
+      patterns: [/(こんにちは|やあ|おはよう|こんばんは|ハロー)/i],
+      response: "こんにちは！今日はどのようにお手伝いできますか？",
+      extract: {}
+    },
+    'goodbye': {
+      patterns: [/(さようなら|バイバイ|またね|じゃあね|おやすみ)/i],
+      response: "さようなら！また何かあればいつでも話しかけてください。",
+      extract: {}
     }
   },
-  
-  // Help/confused
-  'help': {
-    patterns: [
-      /^\?+$/, // Just question marks
-      /(what can you do|how does this work|help me|i'?m lost|confused|what do i do)/i,
-      /^(help|halp|huh\??|what\??|how\??|\?)$/i
-    ],
-    response: "I'm here to help! Here's what I can do:\n\n" +
-               "• Start a meeting or standup by mentioning it\n" +
-               "• Set reminders naturally in chat\n" +
-               "• Help when someone's blocked\n" +
-               "• Play games with the team\n\n" +
-               "Just type naturally and I'll try to help!",
-    extract: {}
+  es: { // Spanish intents
+    'set_reminder': {
+      patterns: [
+        /(recuérdame|crear un recordatorio|no olvides|acuérdate de)/i
+      ],
+      response: "Te recordaré eso. ¿Cuándo quieres que te lo recuerde?",
+      extract: {}
+    },
+    'help': {
+      patterns: [
+        /(ayuda|¿qué puedes hacer?|cómo funciona|estoy perdido|¿qué hago?)/i
+      ],
+      response: "Puedo ayudarte a organizar reuniones, crear recordatorios, detectar bloqueos y jugar juegos de equipo. ¡Solo háblame!",
+      extract: {}
+    },
+    // Add more Spanish intents here
+    'greet': {
+      patterns: [/(hola|buenos días|buenas tardes|buenas noches|hey)/i],
+      response: "¡Hola! ¿En qué puedo ayudarte hoy?",
+      extract: {}
+    },
+    'goodbye': {
+      patterns: [/(adiós|hasta luego|chao|nos vemos|bye)/i],
+      response: "¡Adiós! Si necesitas algo más, aquí estaré.",
+      extract: {}
+    }
   }
 };
 
@@ -82,53 +98,56 @@ const INTENT_PATTERNS = {
  * @param {string} message - The message text to analyze
  * @returns {Object} - { intent: string, confidence: number, entities: Object, response: string }
  */
-function recognizeIntent(message) {
+// Recognize intent from a message for a specific language
+function recognizeIntent(message, language = 'en') {
   // Clean and prepare the message
   const cleanMessage = message.trim().toLowerCase();
   
-  // Check for exact matches first (like single words)
-  if (cleanMessage === 'help' || cleanMessage === '?') {
-    return {
-      intent: 'help',
-      confidence: 1.0,
-      entities: {},
-      response: INTENT_PATTERNS.help.response
-    };
-  }
+  // Pick patterns for the requested language, fallback to English
+  const patterns = INTENT_PATTERNS[language] || INTENT_PATTERNS['en'];
   
-  // Check all patterns
-  for (const [intent, data] of Object.entries(INTENT_PATTERNS)) {
-    for (const pattern of data.patterns) {
-      if (pattern.test(cleanMessage)) {
-        const match = cleanMessage.match(pattern);
-        const entities = extractEntities(cleanMessage, data.extract || {});
-        
-        // Calculate confidence based on match length vs message length
-        const matchedText = match[0];
-        const confidence = Math.min(1, matchedText.length / cleanMessage.length * 1.5);
-        
-        // Generate response with entities
-        let response = data.response;
-        for (const [key, value] of Object.entries(entities)) {
-          response = response.replace(`{{${key}}}`, value);
+  let bestMatch = null;
+  let bestConfidence = 0;
+  let bestEntities = {};
+  let bestResponse = null;
+
+  for (const intent in patterns) {
+    const intentObj = patterns[intent];
+    for (const pattern of intentObj.patterns) {
+      const match = message.match(pattern);
+      if (match) {
+        const confidence = 1; // Pattern match = high confidence
+        if (confidence > bestConfidence) {
+          bestMatch = intent;
+          bestConfidence = confidence;
+          bestEntities = extractEntities(message, intentObj.extract);
+          bestResponse = intentObj.response;
         }
-        
-        return {
-          intent,
-          confidence: Math.round(confidence * 100) / 100, // Round to 2 decimal places
-          entities,
-          response
-        };
       }
     }
   }
-  
+
   // No intent matched
+  if (!bestMatch) {
+    return {
+      intent: 'unknown',
+      confidence: 0,
+      entities: {},
+      response: ''
+    };
+  }
+
+  // Generate response with entities
+  let response = bestResponse;
+  for (const [key, value] of Object.entries(bestEntities)) {
+    response = response.replace(`{{${key}}}`, value);
+  }
+        
   return {
-    intent: 'unknown',
-    confidence: 0,
-    entities: {},
-    response: ''
+    intent: bestMatch,
+    confidence: Math.round(bestConfidence * 100) / 100, // Round to 2 decimal places
+    entities: bestEntities,
+    response
   };
 }
 

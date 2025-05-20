@@ -178,15 +178,40 @@ client.on('interactionCreate', async (interaction) => {
       
       try {
         if (action === 'done') {
-          await markReminderDone(reminderId, interaction.user.id);
-          await interaction.reply({ content: '✅ Reminder marked as done!', ephemeral: true });
-          // Try to delete the original message with the buttons
-          try {
-            await interaction.message.delete();
-          } catch (e) {
-            // Ignore errors if we can't delete the message
-          }
-        } else if (action === 'snooze') {
+  // Fetch the reminder to check ownership
+  const reminder = await reminderManager.getReminderById(reminderId);
+  if (!reminder) {
+    await interaction.reply({ content: 'Sorry, I couldn\'t find that reminder.', ephemeral: true });
+    return;
+  }
+  await markReminderDone(reminderId, interaction.user.id);
+  await interaction.reply({ content: '✅ Reminder marked as done!', ephemeral: true });
+  // Try to delete the original message with the buttons
+  try {
+    await interaction.message.delete();
+  } catch (e) {
+    // Ignore errors if we can't delete the message
+  }
+  // If the user is NOT the owner, offer to copy
+  if (reminder.userId !== interaction.user.id) {
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId(`copyreminder_${reminderId}`)
+          .setLabel('Copy Reminder')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId(`nocopy_${reminderId}`)
+          .setLabel('No thanks')
+          .setStyle(ButtonStyle.Secondary)
+      );
+    await interaction.followUp({
+      content: `You just checked off <@${reminder.userId}>'s reminder. Want to challenge yourself and do the same?`,
+      components: [row],
+      ephemeral: true
+    });
+  }
+} else if (action === 'snooze') {
           // Show a selection of snooze options
           const row = new ActionRowBuilder()
             .addComponents(
@@ -226,6 +251,33 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
     
+    // Handle copy reminder button
+    if (interaction.customId.startsWith('copyreminder_')) {
+      const reminderId = interaction.customId.split('_')[1];
+      const reminder = await reminderManager.getReminderById(reminderId);
+      if (!reminder) {
+        await interaction.reply({ content: 'Sorry, I couldn\'t find that reminder to copy.', ephemeral: true });
+        return;
+      }
+      // Create a new reminder for the current user with the same content and time
+      await reminderManager.createReminder(
+        interaction.user.id,
+        interaction.user.tag,
+        reminder.content,
+        reminder.dueTime ? new Date(reminder.dueTime * 1000) : null,
+        reminder.channelId,
+        reminder.categoryId
+      );
+      await interaction.reply({ content: '✅ Copied! I\'ve set the same reminder for you.', ephemeral: true });
+      return;
+    }
+
+    // Handle "No thanks" button
+    if (interaction.customId.startsWith('nocopy_')) {
+      await interaction.reply({ content: 'No problem! If you ever want to copy a reminder, just let me know. 😊', ephemeral: true });
+      return;
+    }
+
     // Snooze time selection buttons have format: snooze_time_reminderId_minutes
     if (interaction.customId.startsWith('snooze_time_')) {
       const parts = interaction.customId.split('_');
@@ -560,7 +612,21 @@ client.on('guildCreate', async (guild) => {
   await onboarding.start(guild);
 });
 
+const InputManager = require('./input/InputManager');
+const OutputManager = require('./output/OutputManager');
+
 client.on('messageCreate', async msg => {
+  // Unified, language-aware input/output pipeline
+  if (msg.author.bot) return;
+  try {
+    const input = await InputManager.handleInput({ text: msg.content, user: msg.author, channel: msg.channel });
+    // Example: respond with detected intent and language
+    let reply = `Detected intent: ${input.intent.intent}\nLanguage: ${input.language}`;
+    if (input.intent.response) reply += `\n${input.intent.response}`;
+    await OutputManager.sendResponse({ text: reply, language: input.language, user: msg.author, channel: msg.channel, discordClient: client });
+  } catch (e) {
+    console.error('Input/Output pipeline error:', e);
+  }
   // Contextual help: intercept help-like phrases anywhere
   const helpTriggers = ['help', 'what can i do here', 'show me examples'];
   if (helpTriggers.some(t => msg.content.toLowerCase().includes(t))) {
