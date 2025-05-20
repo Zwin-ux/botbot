@@ -160,4 +160,4 @@ class ReactionHandler {
   }
 }
 
-module.exports = ReactionHandler;
+export default ReactionHandler;

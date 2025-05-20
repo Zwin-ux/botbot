@@ -292,4 +292,4 @@ class GuildNotificationService {
   }
 }
 
-module.exports = GuildNotificationService;
+export default GuildNotificationService;

@@ -145,4 +145,4 @@ class CategoryManager {
   }
 }
 
-module.exports = CategoryManager;
+export default CategoryManager;

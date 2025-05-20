@@ -1,4 +1,4 @@
-const sqlite3 = require('sqlite3').verbose();
+import sqlite3 from 'sqlite3';
 
 class ContextManager {
   constructor(db) {
@@ -78,4 +78,4 @@ class ContextManager {
   }
 }
 
-module.exports = ContextManager;
+export default ContextManager;

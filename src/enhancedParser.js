@@ -1,4 +1,4 @@
-const { format, addMinutes, addHours, addDays, addWeeks, isValid } = require('date-fns');
+import { format, addMinutes, addHours, addDays, addWeeks, isValid } from 'date-fns';
 
 class EnhancedParser {
   constructor() {
@@ -311,4 +311,4 @@ class EnhancedParser {
   }
 }
 
-module.exports = EnhancedParser;
+export default EnhancedParser;

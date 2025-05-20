@@ -571,4 +571,4 @@ class GuildManager {
   }
 }
 
-module.exports = GuildManager;
+export default GuildManager;

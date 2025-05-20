@@ -116,10 +116,11 @@ if (missing.length > 0) {
 }
 
 // Ensure data directory exists
-const fs = require('fs');
-if (!fs.existsSync(config.DATA_DIR)) {
-  fs.mkdirSync(config.DATA_DIR, { recursive: true });
+// Use dynamic import for fs since we need to use it synchronously here
+import { existsSync, mkdirSync } from 'fs';
+if (!existsSync(config.DATA_DIR)) {
+  mkdirSync(config.DATA_DIR, { recursive: true });
 }
 
 // Export configuration
-module.exports = config;
+export default config;

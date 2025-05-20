@@ -239,7 +239,7 @@ function listIntents() {
   return Object.keys(INTENT_PATTERNS);
 }
 
-module.exports = {
+export {
   recognizeIntent,
   listIntents
 };

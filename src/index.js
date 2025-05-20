@@ -16,6 +16,10 @@ import MessageHandler from './handlers/messageHandler.js';
 import ReactionHandler from './handlers/reactionHandler.js';
 import NaturalMessageHandler from './handlers/naturalMessageHandler.js';
 import { COLORS, EMOJIS } from './utils/embedUtils.js';
+import ReminderManager from './database/reminderManager.js';
+import ReminderManagerExtended from './database/reminderManagerExtended.js';
+import GuildNotificationService from './services/guildNotificationService.js';
+import TestHandler from './handlers/testHandler.js';
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
@@ -94,8 +98,6 @@ async function startBot() {
     } = await initializeDatabase();
     
     // Initialize database managers
-    const ReminderManager = require('./database/reminderManager');
-    const ReminderManagerExtended = require('./database/reminderManagerExtended');
     const reminderManagerBase = new ReminderManager(db);
     const reminderManagerExtended = new ReminderManagerExtended(db);
     const reminderManager = reminderManagerExtended || reminderManagerBase;
@@ -109,7 +111,6 @@ async function startBot() {
     
     // Initialize services
     logger.info('Initializing services...');
-    const GuildNotificationService = require('./services/guildNotificationService.js');
     const guildNotificationService = new GuildNotificationService(client, guildManager);
     
     // Initialize handlers
@@ -127,6 +128,7 @@ async function startBot() {
     );
     
     const naturalMessageHandler = new NaturalMessageHandler(client, db);
+    const testHandler = new TestHandler(client, db);
     
     // Log when the bot is ready
     client.once('ready', () => {
@@ -140,10 +142,18 @@ async function startBot() {
     // Handle all messages with natural language processing
     client.on('messageCreate', async (message) => {
       try {
-        // First try natural language processing
-        await naturalMessageHandler.handleMessage(message);
+        // Ignore messages from bots
+        if (message.author.bot) return;
         
-        // Then fall back to command processing
+        // First check for test commands (hidden developer feature)
+        const testHandled = await testHandler.handleMessage(message);
+        if (testHandled) return; // If it was a test command, stop processing
+        
+        // Then try natural language processing
+        const nlpHandled = await naturalMessageHandler.handleMessage(message);
+        if (nlpHandled) return; // If NLP handled it, stop processing
+        
+        // Finally fall back to command processing
         if (message.content.startsWith(process.env.PREFIX || '!')) {
           await messageHandler.handleMessage(message);
         }

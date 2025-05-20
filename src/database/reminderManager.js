@@ -299,4 +299,4 @@ class ReminderManager {
   }
 }
 
-module.exports = ReminderManager;
+export default ReminderManager;

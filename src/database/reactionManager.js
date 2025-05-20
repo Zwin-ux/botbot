@@ -171,4 +171,4 @@ class ReactionManager {
   }
 }
 
-module.exports = ReactionManager;
+export default ReactionManager;

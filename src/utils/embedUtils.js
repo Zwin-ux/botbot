@@ -131,7 +131,7 @@ function createPlayerListEmbed(players, title = 'Players') {
   });
 }
 
-module.exports = {
+export {
   COLORS,
   EMOJIS,
   createEmbed,

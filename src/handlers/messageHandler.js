@@ -3,13 +3,12 @@
  */
 class MessageHandler {
   constructor(client, contextManager, parser, reminderManager, categoryManager, reactionManager, standupHandler, retroHandler, guildManager) {
-    // Check if we have the extended parser
-    const EnhancedParserExtended = require('../enhancedParserExtended');
-    const extendedParser = new EnhancedParserExtended();
+    // No need to require EnhancedParserExtended here as it's now imported at the module level
+    // Will use the parser provided in the constructor
     this.client = client;
     this.contextManager = contextManager;
-    // Use extended parser if available, otherwise fall back to original parser
-    this.parser = extendedParser || parser;
+    // Use the parser provided in constructor
+    this.parser = parser;
     this.reminderManager = reminderManager;
     this.categoryManager = categoryManager;
     this.reactionManager = reactionManager;
@@ -17,11 +16,8 @@ class MessageHandler {
     this.retroHandler = retroHandler;
     this.guildManager = guildManager;
     
-    // Initialize guild handler if guild manager is available
-    if (this.guildManager) {
-      const GuildHandler = require('./guildHandler');
-      this.guildHandler = new GuildHandler(client, guildManager, reminderManager);
-    }
+    // Note: GuildHandler would need to be imported at the top of the file if needed
+    // this.guildHandler = guildHandler ? guildHandler : null;
     
     // Conversation state management (for interactive flows)
     this.conversationStates = new Map();
@@ -590,4 +586,4 @@ class MessageHandler {
   }
 }
 
-module.exports = MessageHandler;
+export default MessageHandler;

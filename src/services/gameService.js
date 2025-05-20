@@ -1,5 +1,5 @@
-const BaseService = require('./baseService');
-const { v4: uuidv4 } = require('uuid');
+import BaseService from './baseService.js';
+import { v4 as uuidv4 } from 'uuid';
 
 class GameService extends BaseService {
   constructor(db, logger) {
@@ -126,4 +126,4 @@ class GameService extends BaseService {
   }
 }
 
-module.exports = GameService;
+export default GameService;

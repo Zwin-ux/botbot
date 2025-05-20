@@ -1,4 +1,4 @@
-const { format, addMinutes, addHours, addDays, addWeeks, isValid } = require('date-fns');
+import { format, addMinutes, addHours, addDays, addWeeks, isValid } from 'date-fns';
 
 /**
  * Enhanced natural language parser with broader pattern recognition
@@ -489,4 +489,4 @@ class EnhancedParserExtended {
   }
 }
 
-module.exports = EnhancedParserExtended;
+export default EnhancedParserExtended;
