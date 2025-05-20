@@ -144,12 +144,28 @@ const INTENT_PATTERNS = {
  * @returns {Object} - { intent: string, confidence: number, entities: Object, response: string }
  */
 // Recognize intent from a message for a specific language
-function recognizeIntent(message, language = 'en') {
+/**
+ * Recognize intent from a message with optional attentive mode
+ * @param {string} message - The message text to analyze
+ * @param {string} [language='en'] - Language code
+ * @param {boolean} [isAttentive=false] - Whether the bot is in attentive mode
+ * @returns {Object} - { intent: string, confidence: number, entities: Object, response: string }
+ */
+function recognizeIntent(message, language = 'en', isAttentive = false) {
   // Clean and prepare the message
   const cleanMessage = message.trim().toLowerCase();
   
+  // Debug logging
+  console.log('Recognizing intent for message:', cleanMessage);
+  console.log('Available languages:', Object.keys(INTENT_PATTERNS));
+  
   // Pick patterns for the requested language, fallback to English
   const patterns = INTENT_PATTERNS[language] || INTENT_PATTERNS['en'];
+  console.log('Using patterns for language:', language);
+  console.log('Available intents in language:', Object.keys(patterns));
+  
+  // In attentive mode, we can be more lenient with matching
+  const ATTENTIVE_MODE_BOOST = 0.2; // 20% confidence boost in attentive mode
   
   let bestMatch = null;
   let bestConfidence = 0;
