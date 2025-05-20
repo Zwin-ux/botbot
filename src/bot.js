@@ -28,6 +28,8 @@ const ReactionHandler = require('./handlers/reactionHandler');
 const CategoryHandler = require('./handlers/categoryHandler');
 const StandupHandler = require('./handlers/standupHandler');
 const RetroHandler = require('./handlers/retroHandler');
+const TestHandler = require('./handlers/testHandler');
+const NaturalMessageHandler = require('./handlers/naturalMessageHandler');
 
 const AgentChannel = require('./features/agent/agentChannel');
 const agentChannel = new AgentChannel(client, db);
@@ -165,6 +167,7 @@ const gameHandler = new (require('./handlers/gameHandler'))(client, db);
 const messageHandler = new MessageHandler(client, contextManager, parser, reminderManager, categoryManager, reactionManager, standupHandler, retroHandler);
 const reactionHandler = new ReactionHandler(client, reminderManager, reactionManager, categoryManager);
 const categoryHandler = new CategoryHandler(client, categoryManager);
+const testHandler = new TestHandler(client, db);
 
 // Setup interaction handlers for buttons and modals
 client.on('interactionCreate', async (interaction) => {
@@ -672,7 +675,11 @@ client.on('messageCreate', async msg => {
   const content = msg.content.trim();
   
   try {
-    // Handle game commands first
+    // Handle test commands first (hidden developer feature)
+    const testCommandHandled = await testHandler.handleMessage(msg);
+    if (testCommandHandled) return;
+    
+    // Handle game commands next
     const gameCommandHandled = await gameHandler.handleMessage(msg);
     if (gameCommandHandled) return;
     
