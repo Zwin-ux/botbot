@@ -1,6 +1,5 @@
-const { recognizeIntent } = require('../utils/intentRecognizer');
-const { createEmbed } = require('../utils/embedUtils');
-const { COLORS, EMOJIS } = require('../utils/embedUtils');
+import { recognizeIntent } from '../utils/intentRecognizer.js';
+import { createEmbed, COLORS, EMOJIS } from '../utils/embedUtils.js';
 
 // Minimum confidence threshold for automatic actions
 const MIN_CONFIDENCE = 0.3;
@@ -32,15 +31,38 @@ class NaturalMessageHandler {
    * @private
    */
   isBotAddressed(message) {
-    const content = message.content.toLowerCase().trim();
+    const content = message.content.trim();
+    const lowerContent = content.toLowerCase();
     
     // Check if the bot is mentioned
-    if (message.mentions && message.mentions.has && message.mentions.has(this.client.user)) {
+    if (message.mentions && message.mentions.users && message.mentions.users.has(this.client.user.id)) {
+      console.log('Bot was mentioned!');
       return true;
     }
     
     // Check for wake words at the beginning of the message
-    return WAKE_WORDS.some(word => content.startsWith(word.toLowerCase()));
+    for (const word of WAKE_WORDS) {
+      // Case insensitive check
+      if (lowerContent.startsWith(word.toLowerCase())) {
+        console.log(`Wake word detected: ${word}`);
+        return true;
+      }
+      
+      // Check with punctuation (e.g., "Hey bot!")
+      const wordWithPunctuation = new RegExp(`^${word.toLowerCase()}[!.,?]\s`, 'i');
+      if (wordWithPunctuation.test(lowerContent)) {
+        console.log(`Wake word with punctuation detected: ${word}`);
+        return true;
+      }
+    }
+    
+    // Check for exact match to just the bot name (case insensitive)
+    if (lowerContent === 'bot' || lowerContent === 'botbot') {
+      console.log('Exact bot name match detected');
+      return true;
+    }
+    
+    return false;
   }
 
   /**
@@ -70,9 +92,14 @@ class NaturalMessageHandler {
     });
   }
 
+  /**
+   * Handle a natural language message
+   * @param {Message} message - The Discord message
+   * @returns {boolean} - Whether the message was handled
+   */
   async handleMessage(message) {
     // Ignore messages from bots and empty messages
-    if (message.author.bot || !message.content.trim()) return;
+    if (message.author.bot || !message.content.trim()) return false;
     
     const userId = message.author.id;
     let isAddressed = this.isBotAddressed(message);
@@ -106,13 +133,13 @@ class NaturalMessageHandler {
       // respond with a greeting
       if (!content) {
         await message.reply("Hi there! I'm listening. What can I help you with?");
-        return;
+        return true;
       }
       
       // Otherwise, update the message content for intent processing
       message.content = content;
     } else if (!isAttentive) {
-      return;
+      return false;
     } else if (isAttentive) {
       // If in attentive mode but not addressed this message, don't set attentiveForThisMessage
       attentiveForThisMessage = true;
@@ -182,49 +209,54 @@ class NaturalMessageHandler {
           })]
         });
       }
+      return false;
     }
+    
+    // If we got this far, we handled the message
+    return true;
   }
 
   /**
    * Handle a recognized intent
    * @private
+   * @returns {boolean} - Whether the intent was handled
    */
   async handleIntent(message, intent, confidence, entities, response, userState) {
     // If we have a direct response, use it first (this is critical for tests)
     if (response) {
       await message.reply(response);
-      return;
+      return true;
     }
     
     // If we're not confident, ask for clarification
     if (!intent || confidence < MIN_CONFIDENCE) {
       // Always respond to low-confidence messages in tests to ensure test expectations are met
       await this.askForClarification(message);
-      return;
+      return true;
     }
 
     // Handle the specific intent
     switch (intent) {
       case 'start_meeting':
         await this.handleMeetingIntent(message, entities);
-        break;
+        return true;
         
       case 'set_reminder':
         userState.awaitingReminderTime = true;
         await message.reply('I\'ll remind you of that. When should I remind you?');
-        break;
+        return true;
         
       case 'blocked':
         await this.handleBlockedIntent(message);
-        break;
+        return true;
         
       case 'start_game':
         await this.handleGameIntent(message, entities);
-        break;
+        return true;
         
       case 'help':
-        await message.reply(response);
-        break;
+        await message.reply(response || "I'm here to help! You can ask me about reminders, meetings, or games.");
+        return true;
         
       default:
         // Handle unknown intents or low confidence
@@ -237,8 +269,9 @@ class NaturalMessageHandler {
           ];
           const randomResponse = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
           await message.reply(randomResponse);
+          return true;
         }
-        break;
+        return false; // We didn't handle this intent
     }
   }
 
@@ -468,4 +501,4 @@ class NaturalMessageHandler {
   }
 }
 
-module.exports = NaturalMessageHandler;
+export default NaturalMessageHandler;

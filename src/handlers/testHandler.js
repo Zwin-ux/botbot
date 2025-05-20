@@ -4,8 +4,8 @@
  * without relying on the wake word mechanism
  */
 
-const { recognizeIntent } = require('../utils/intentRecognizer');
-const NaturalMessageHandler = require('./naturalMessageHandler');
+import { recognizeIntent } from '../utils/intentRecognizer.js';
+import NaturalMessageHandler from './naturalMessageHandler.js';
 
 class TestHandler {
   constructor(client, db) {
@@ -49,9 +49,28 @@ class TestHandler {
       return true;
     }
     
-    // Handle test selection
-    if (content.startsWith('test phrase ')) {
-      const index = parseInt(content.replace('test phrase ', ''), 10);
+    // Handle test selection with more flexible matching
+    if (content.includes('test phrase') || content.includes('test command')) {
+      console.log('Test phrase command detected:', content);
+      // Extract the number from the command
+      const match = content.match(/\d+/);
+      if (match) {
+        const index = parseInt(match[0], 10);
+        console.log('Test index detected:', index);
+        if (!isNaN(index) && index >= 1 && index <= this.testPhrases.length) {
+          await this.runTest(message, index - 1);
+          return true;
+        }
+      }
+      // If no valid number was found, show the test menu
+      await this.showTestMenu(message);
+      return true;
+    }
+    
+    // Also catch just the number (for quick testing)
+    if (/^\d+$/.test(content)) {
+      const index = parseInt(content, 10);
+      console.log('Direct number test command detected:', index);
       if (!isNaN(index) && index >= 1 && index <= this.testPhrases.length) {
         await this.runTest(message, index - 1);
         return true;
@@ -105,22 +124,38 @@ class TestHandler {
   async runTest(message, index) {
     const test = this.testPhrases[index];
     
-    await message.reply(`**Running Test:** \`${test.phrase}\` (${test.category} - ${test.description})`);
+    await message.reply(`**Running Test #${index + 1}:** \`${test.phrase}\` (${test.category} - ${test.description})`);
     
     // Create a simulated message with the test phrase
     const simulatedMessage = {
       content: test.phrase,
       author: message.author,
       channel: message.channel,
-      mentions: message.mentions,
+      // Properly handle mentions for wake word detection
+      mentions: {
+        users: new Map(),
+        has: function(user) { return this.users.has(user.id); }
+      },
+      guild: message.guild,
+      client: this.client,
       reply: async (content) => {
+        if (typeof content === 'object' && content.embeds) {
+          return message.reply(`**Bot Response:** [Embed] ${content.embeds[0]?.description || 'No description'}`);
+        }
         return message.reply(`**Bot Response:** ${content}`);
       }
     };
     
+    console.log(`Running test with phrase: "${test.phrase}"`);
+    
     // Process the message through the natural message handler
     try {
-      await this.naturalHandler.handleMessage(simulatedMessage);
+      const handled = await this.naturalHandler.handleMessage(simulatedMessage);
+      console.log(`Test result - Handled: ${handled}`);
+      
+      if (!handled) {
+        await message.reply(`**Test Result:** The message was NOT handled by the natural language processor. This may indicate an issue with wake word detection or intent recognition.`);
+      }
     } catch (error) {
       await message.reply(`**Error during test:** ${error.message}`);
       console.error('Test error:', error);
@@ -155,4 +190,4 @@ class TestHandler {
   }
 }
 
-module.exports = TestHandler;
+export default TestHandler;

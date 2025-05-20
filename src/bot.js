@@ -619,16 +619,29 @@ const InputManager = require('./input/InputManager');
 const OutputManager = require('./output/OutputManager');
 
 client.on('messageCreate', async msg => {
-  // Unified, language-aware input/output pipeline
+  // Ignore messages from bots
   if (msg.author.bot) return;
+  
   try {
-    const input = await InputManager.handleInput({ text: msg.content, user: msg.author, channel: msg.channel });
-    // Example: respond with detected intent and language
-    let reply = `Detected intent: ${input.intent.intent}\nLanguage: ${input.language}`;
-    if (input.intent.response) reply += `\n${input.intent.response}`;
-    await OutputManager.sendResponse({ text: reply, language: input.language, user: msg.author, channel: msg.channel, discordClient: client });
-  } catch (e) {
-    console.error('Input/Output pipeline error:', e);
+    // Process with our natural language handler first
+    // This will handle wake words and intents directly
+    const nlpHandled = await naturalMessageHandler.handleMessage(msg);
+    if (nlpHandled) return; // If the natural language handler processed it, we're done
+    
+    // If natural language handler didn't handle it, try the input/output pipeline
+    try {
+      const input = await InputManager.handleInput({ text: msg.content, user: msg.author, channel: msg.channel });
+      // Only respond if we have a meaningful intent
+      if (input.intent && input.intent.confidence > 0.3) {
+        let reply = input.intent.response || `I detected: ${input.intent.intent}`;
+        await OutputManager.sendResponse({ text: reply, language: input.language, user: msg.author, channel: msg.channel, discordClient: client });
+        return;
+      }
+    } catch (e) {
+      console.error('Input/Output pipeline error:', e);
+    }
+  } catch (nlpError) {
+    console.error('Natural language processing error:', nlpError);
   }
   // Contextual help: intercept help-like phrases anywhere
   const helpTriggers = ['help', 'what can i do here', 'show me examples'];

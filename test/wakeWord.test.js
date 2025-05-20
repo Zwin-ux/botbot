@@ -1,13 +1,13 @@
-const NaturalMessageHandler = require('../src/handlers/naturalMessageHandler');
-const { recognizeIntent } = require('../src/utils/intentRecognizer');
+import NaturalMessageHandler from '../src/handlers/naturalMessageHandler.js';
+import { recognizeIntent } from '../src/utils/intentRecognizer.js';
 
 // Mock the intentRecognizer
-jest.mock('../src/utils/intentRecognizer', () => ({
+jest.mock('../src/utils/intentRecognizer.js', () => ({
   recognizeIntent: jest.fn()
 }));
 
 // Mock the embedUtils
-jest.mock('../src/utils/embedUtils', () => ({
+jest.mock('../src/utils/embedUtils.js', () => ({
   createEmbed: jest.fn().mockImplementation(({ title, description, color }) => ({
     title,
     description,
