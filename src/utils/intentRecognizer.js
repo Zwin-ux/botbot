@@ -6,9 +6,54 @@
 // Intent patterns with keywords and responses
 // Multi-language intent patterns
 // To add a new language, add a new key (e.g., 'fr', 'ja') with the same structure as 'en'.
+// English (en) is the default language and should always be defined.
 const INTENT_PATTERNS = {
   en: { // English intents
-    // ...existing intents...
+    'set_reminder': {
+      patterns: [
+        /(remind me|set a reminder|don't forget|remember to|reminder for)/i
+      ],
+      response: "I'll remind you of that. When should I remind you?",
+      extract: {}
+    },
+    'help': {
+      patterns: [
+        /(help|what can you do|how does this work|i'm stuck|what should I do)/i
+      ],
+      response: "I can help you organize meetings, set reminders, detect if someone is blocked, and play team games. Just talk to me!",
+      extract: {}
+    },
+    'greet': {
+      patterns: [/(hello|hi|hey|greetings|howdy)/i],
+      response: "Hello! How can I help you today?",
+      extract: {}
+    },
+    'goodbye': {
+      patterns: [/(goodbye|bye|see you|take care|farewell)/i],
+      response: "Goodbye! Let me know if you need anything else.",
+      extract: {}
+    },
+    'start_meeting': {
+      patterns: [
+        /(start a meeting|begin a meeting|let's meet|schedule a meeting)/i
+      ],
+      response: "I can help you start a meeting. What type of meeting would you like to begin?",
+      extract: {}
+    },
+    'blocked': {
+      patterns: [
+        /(i'm stuck|i need help|can someone help|i'm blocked|help me)/i
+      ],
+      response: "I noticed you might be blocked. Would you like me to help you create a help thread?",
+      extract: {}
+    },
+    'start_game': {
+      patterns: [
+        /(let's play|start a game|play a game|game time)/i
+      ],
+      response: "I'd love to play a game! What game would you like to play?",
+      extract: {}
+    }
   },
   fr: { // French intents
     'set_reminder': {
