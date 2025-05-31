@@ -1,20 +1,22 @@
 // LanguageDetector: Uses 'franc' for language detection
 // To use: npm install franc
-const franc = require('franc');
+import franc from 'franc';
 
 /**
  * Detects the language of a given text using franc.
  * Returns ISO 639-1 code ('en', 'fr', 'ja', etc.), or 'en' as fallback.
  */
-module.exports = {
+const LanguageDetector = {
   async detect(text) {
     if (!text || text.length < 3) return 'en'; // Too short to detect
     const langCode = franc(text, { minLength: 3 });
     // Map franc's ISO 639-3 codes to ISO 639-1
-    const map = { eng: 'en', fra: 'fr', jpn: 'ja', spa: 'es' };
+    const map = { eng: 'en', fra: 'fr', jpn: 'ja', spa: 'es' }; // Added 'spa' for Spanish if franc returns it
     return map[langCode] || 'en';
   }
 };
+
+export default LanguageDetector;
 
 /**
  * ---

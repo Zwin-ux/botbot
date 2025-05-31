@@ -1,8 +1,15 @@
+import { sendErrorReply, sendNotFoundSuggestCreate } from '../utils/errorHandler.js';
+import CategoryHandler from './categoryHandler.js';
+import ReminderFunctions from './reminderFunctions.js';
+// ConversationFlowManager is now injected, so direct import for instantiation is not needed here.
+// If types are needed and not available globally, it might be imported for type hinting:
+// import type ConversationFlowManager from './ConversationFlowManager.js';
+
 /**
  * Enhanced message handler with support for categories and voting
  */
 class MessageHandler {
-  constructor(client, contextManager, parser, reminderManager, categoryManager, reactionManager, standupHandler, retroHandler, guildManager) {
+  constructor(client, contextManager, parser, reminderManager, categoryManager, reactionManager, standupHandler, retroHandler, guildManager, conversationFlowManager) {
     // No need to require EnhancedParserExtended here as it's now imported at the module level
     // Will use the parser provided in the constructor
     this.client = client;
@@ -19,13 +26,13 @@ class MessageHandler {
     // Note: GuildHandler would need to be imported at the top of the file if needed
     // this.guildHandler = guildHandler ? guildHandler : null;
     
-    // Conversation state management (for interactive flows)
-    this.conversationStates = new Map();
+    // Use injected ConversationFlowManager
+    this.conversationFlowManager = conversationFlowManager;
   }
 
   /**
    * Process incoming messages
-   * @param {Message} msg - Discord message
+   * @param {import('discord.js').Message} msg - Discord message
    * @returns {Promise<void>}
    */
   async handleMessage(msg) {
@@ -38,156 +45,42 @@ class MessageHandler {
       const content = msg.content.trim();
       
       try {
-        // First, check if we're in a conversation state
-        const state = this.conversationStates.get(userId);
-        
-        // If we're waiting for a time, try to handle that first
-        if (state?.state === 'AWAITING_TIME') {
-          const handled = await this.handleTimeResponse(msg, content);
-          if (handled) return;
-        }
-        
-        // If we're waiting for a category, try to handle that
-        if (state?.state === 'AWAITING_CATEGORY') {
-          const handled = await this.handleCategoryResponse(msg, content);
-          if (handled) return;
-        }
+        // Delegate conversation state handling to ConversationFlowManager
+        if (await this.conversationFlowManager.handleTimeResponse(msg, content)) return;
+        if (await this.conversationFlowManager.handleCategoryResponse(msg, content)) return;
         
         // Convert content to lowercase for easier matching
         const lowerContent = content.toLowerCase();
-        
-        // Ping response
-        if (lowerContent.match(/^(hi|hello|hey|ping|yo|sup|'?sup|are you there|bot\??)/i)) {
-          return msg.reply('Hi there! I\'m here and ready to help with your reminders, standups, and retrospectives. What can I do for you today?');
-        }
-        
-        // Help command
-        if (lowerContent.match(/^(help|what can you do|commands|support)\??/i)) {
-          return this.showHelp(msg);
-        }
-        
-        // Handle standup commands
-        const standupMatch = lowerContent.match(/(?:standup|daily)(?:\s+(setup|start|list|summary|help))?/i);
-        if (standupMatch) {
-          if (this.standupHandler) {
-            const subCommand = standupMatch[1] || '';
-            const args = content.replace(/\b(?:standup|daily)\s*/i, '').trim().split(/\s+/);
-            await this.standupHandler.processStandupCommand(msg, [subCommand, ...args]);
-            return;
-          }
-        }
-        
-        // Handle retrospective commands
-        const retroMatch = lowerContent.match(/(?:retro|retrospective)(?:\s+(setup|start|list|summary|help))?/i);
-        if (retroMatch) {
-          if (this.retroHandler) {
-            const subCommand = retroMatch[1] || '';
-            const args = content.replace(/\b(?:retro|retrospective)\s*/i, '').trim().split(/\s+/);
-            await this.retroHandler.processRetroCommand(msg, [subCommand, ...args]);
-            return;
-          }
-        }
-        
+
+        if (await this._handlePing(msg, lowerContent)) return;
+        if (await this._handleHelp(msg, lowerContent)) return;
+        if (await this._handleStandupCommand(msg, content, lowerContent)) return;
+        if (await this._handleRetroCommand(msg, content, lowerContent)) return;
+
         // Try to handle category commands first
-        const categoryHandler = require('./categoryHandler');
-        const catHandler = new categoryHandler(this.client, this.categoryManager);
+        const catHandler = new CategoryHandler(this.client, this.categoryManager);
         const handledByCategory = await catHandler.handleMessage(msg, content);
         if (handledByCategory) return;
-        
+
         // Try to handle guild commands if guild handler is available
         if (this.guildHandler) {
           const handledByGuild = await this.guildHandler.handleMessage(msg, content);
           if (handledByGuild) return;
         }
-        
-        // Show reminders commands with enhanced filtering and natural language
-        const reminderListMatch = lowerContent.match(/(?:show|list|what.?s|my|view|see|check|display|get|what are (?:my|the)|do i have any|show me|tell me about)\s+(?:reminders?|todos?|tasks?|list|upcoming|pending|due|stuff|things|assignments)/i);
-        if (reminderListMatch) {
-          // Check for category filter
-          let categoryId = null;
-          const categoryMatch = content.match(/in\s+(?:category|tag)\s+([^\s]+)/i);
-          if (categoryMatch) {
-            const categoryEmoji = categoryMatch[1].trim();
-            const category = await this.categoryManager.getCategoryByEmoji(categoryEmoji);
-            if (category) {
-              categoryId = category.id;
-            }
-          }
-          
-          // Check for time filter
-          const timeFilterMatch = content.toLowerCase().match(/(today|this week|overdue)/i);
-          let timeFilter = 'all';
-          if (timeFilterMatch) {
-            timeFilter = timeFilterMatch[1].toLowerCase();
-            if (timeFilter === 'this week') timeFilter = 'week';
-          }
-          
-          // Check for priority sorting
-          const sortByPriority = content.toLowerCase().includes('priority') || 
-                                 content.toLowerCase().includes('important') || 
-                                 content.toLowerCase().includes('voted');
-          
-          return this.showRemindersSummary(msg, userId, {
-            timeFilter, 
-            categoryId,
-            sortByPriority
-          });
-        }
-        
-        // Mark reminder as done
-        const doneMatch = content.match(/(?:done|complete|finish|completed|finished)\s+(\\d+)/i);
-        if (doneMatch) {
-          const reminderId = doneMatch[1];
-          try {
-            await this.reminderManager.markReminderDone(reminderId, userId);
-            // Confetti/celebratory feedback for first-time reminder completion
-          return msg.reply('🎉 Reminder marked as done! Nice work!');
-          } catch (error) {
-            // Friendly suggestion for reminders
-          const { getSetupSuggestion } = require('../features/setupSuggest');
-          const { embed, row } = getSetupSuggestion('reminder');
-          return msg.reply({ content: 'I couldn’t find that reminder. Want to create a new one?', embeds: [embed], components: [row] });
-          }
-        }
-        
-        // Delete reminder
-        const deleteMatch = content.match(/(?:delete|remove|cancel)\s+(\\d+)/i);
-        if (deleteMatch) {
-          const reminderId = deleteMatch[1];
-          try {
-            await this.reminderManager.deleteReminder(reminderId, userId);
-            return msg.reply(`🗑️ Reminder #${reminderId} has been deleted.`);
-          } catch (error) {
-            // Friendly suggestion for reminders
-          const { getSetupSuggestion } = require('../features/setupSuggest');
-          const { embed, row } = getSetupSuggestion('reminder');
-          return msg.reply({ content: 'I couldn’t find that reminder. Want to create a new one?', embeds: [embed], components: [row] });
-          }
-        }
-        
-        // Handle reminder creation with enhanced parser
-        if (content.toLowerCase().match(/(remind|todo|reminder|task|remember|don'?t forget|need to|have to|should|must)/i)) {
-          // Use the new ReminderFunctions module
-          const ReminderFunctions = require('./reminderFunctions');
-          return ReminderFunctions.handleReminderCreation(
-            this.reminderManager,
-            this.categoryManager,
-            this.parser,
-            this.conversationStates,
-            msg,
-            content
-          );
-        }
+
+        if (await this._handleReminderList(msg, userId, content, lowerContent)) return;
+        if (await this._handleReminderModification(msg, userId, content)) return;
+        if (await this._handleReminderCreation(msg, content)) return;
+
       } catch (error) {
-        console.error('Error processing message:', error);
-        msg.reply('Sorry, I ran into a problem processing your message. Please try again.').catch(console.error);
+        sendErrorReply(msg, null, error);
       }
     }
   }
 
   /**
    * Show help information
-   * @param {Message} msg - Discord message
+   * @param {import('discord.js').Message} msg - Discord message
    */
   async showHelp(msg) {
     const helpEmbed = {
@@ -258,142 +151,192 @@ class MessageHandler {
   }
 
   /**
-        state: 'AWAITING_CATEGORY',
-        data: {
-          task: result.task,
-          time: result.time,
-          emoji: emojiMatch[0],
-          priority: result.priority || 0,
-          target: result.target
-        }
-      });
-    
-      return msg.reply(`I noticed you used the emoji ${emojiMatch[0]}. Would you like to:\n1. Create a new category with this emoji\n2. Use an existing category\n3. Don't use a category\n\nReply with the number or your choice.`);
-    }
-  }
-  
-  // Handle non-self targets like team or channels if supported
-  if (result.target && !result.target.self) {
-    return this.handleTargetedReminder(msg, result, categoryId);
-   * @param {string} task - Task content
+   * Handles ping responses.
+   * @param {import('discord.js').Message} msg - Discord message
+   * @param {string} lowerContent - Lowercased message content
+   * @returns {Promise<boolean>} - True if handled
+   * @private
    */
-  async handleIncompleteReminder(msg, task) {
-    const userId = msg.author.id;
-    this.conversationStates.set(userId, { state: 'AWAITING_TIME', task });
-    await msg.reply(`Got it! When would you like to be reminded to "${task}"? (e.g., "in 2 hours", "tomorrow at 3pm")`);
+  async _handlePing(msg, lowerContent) {
+    const pingWords = ['hi', 'hello', 'hey', 'ping', 'yo', 'sup', "'sup", 'are you there', 'bot'];
+    // Check if lowerContent starts with any of the pingWords or is exactly 'bot?'
+    if (pingWords.some(word => lowerContent.startsWith(word)) || lowerContent === 'bot?') {
+      await msg.reply('Hi there! I\'m here and ready to help with your reminders, standups, and retrospectives. What can I do for you today?');
+      return true;
+    }
+    return false;
   }
 
   /**
-   * Handle time response in conversation
-   * @param {Message} msg - Discord message
-   * @param {string} timeText - Time text
+   * Handles help command.
+   * @param {import('discord.js').Message} msg - Discord message
+   * @param {string} lowerContent - Lowercased message content
    * @returns {Promise<boolean>} - True if handled
+   * @private
    */
-  async handleTimeResponse(msg, timeText) {
-    const userId = msg.author.id;
-    const state = this.conversationStates.get(userId);
-    if (!state || state.state !== 'AWAITING_TIME') return false;
+  async _handleHelp(msg, lowerContent) {
+    const helpTriggers = ['help', 'commands', 'support', 'what can you do'];
 
-    const dueTime = this.parser.parseTime(timeText);
-    if (!dueTime) {
-      await msg.reply("I couldn't understand that time. Could you try again? (e.g., 'in 2 hours', 'tomorrow at 3pm')");
+    for (const trigger of helpTriggers) {
+      if (lowerContent.startsWith(trigger)) {
+        // Check if the match is exact or followed by a space or '?'
+        // e.g., "help", "help?", "help me"
+        if (lowerContent.length === trigger.length ||
+            lowerContent.charAt(trigger.length) === ' ' ||
+            lowerContent.charAt(trigger.length) === '?') {
+          await this.showHelp(msg);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Handles standup commands.
+   * @param {import('discord.js').Message} msg - Discord message
+   * @param {string} content - Original message content
+   * @param {string} lowerContent - Lowercased message content
+   * @returns {Promise<boolean>} - True if handled
+   * @private
+   */
+  async _handleStandupCommand(msg, content, lowerContent) {
+    const standupMatch = lowerContent.match(/(?:standup|daily)(?:\s+(setup|start|list|summary|help))?/i);
+    if (standupMatch) {
+      if (this.standupHandler) {
+        const subCommand = standupMatch[1] || '';
+        const args = content.replace(/\b(?:standup|daily)\s*/i, '').trim().split(/\s+/);
+        await this.standupHandler.processStandupCommand(msg, [subCommand, ...args]);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Handles retrospective commands.
+   * @param {import('discord.js').Message} msg - Discord message
+   * @param {string} content - Original message content
+   * @param {string} lowerContent - Lowercased message content
+   * @returns {Promise<boolean>} - True if handled
+   * @private
+   */
+  async _handleRetroCommand(msg, content, lowerContent) {
+    const retroMatch = lowerContent.match(/(?:retro|retrospective)(?:\s+(setup|start|list|summary|help))?/i);
+    if (retroMatch) {
+      if (this.retroHandler) {
+        const subCommand = retroMatch[1] || '';
+        const args = content.replace(/\b(?:retro|retrospective)\s*/i, '').trim().split(/\s+/);
+        await this.retroHandler.processRetroCommand(msg, [subCommand, ...args]);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Handles listing reminders.
+   * @param {import('discord.js').Message} msg - Discord message
+   * @param {string} userId - User ID
+   * @param {string} content - Original message content
+   * @param {string} lowerContent - Lowercased message content
+   * @returns {Promise<boolean>} - True if handled
+   * @private
+   */
+  async _handleReminderList(msg, userId, content, lowerContent) {
+    const reminderListMatch = lowerContent.match(/(?:show|list|what.?s|my|view|see|check|display|get|what are (?:my|the)|do i have any|show me|tell me about)\s+(?:reminders?|todos?|tasks?|list|upcoming|pending|due|stuff|things|assignments)/i);
+    if (reminderListMatch) {
+      let categoryId = null;
+      const categoryMatch = content.match(/in\s+(?:category|tag)\s+([^\s]+)/i);
+      if (categoryMatch) {
+        const categoryEmoji = categoryMatch[1].trim();
+        const category = await this.categoryManager.getCategoryByEmoji(categoryEmoji);
+        if (category) {
+          categoryId = category.id;
+        }
+      }
+
+      const timeFilterMatch = lowerContent.match(/(today|this week|overdue)/i);
+      let timeFilter = 'all';
+      if (timeFilterMatch) {
+        timeFilter = timeFilterMatch[1].toLowerCase();
+        if (timeFilter === 'this week') timeFilter = 'week';
+      }
+
+      const sortByPriority = lowerContent.includes('priority') ||
+                             lowerContent.includes('important') ||
+                             lowerContent.includes('voted');
+
+      await this.showRemindersSummary(msg, userId, {
+        timeFilter,
+        categoryId,
+        sortByPriority
+      });
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Handles reminder modification (done, delete).
+   * @param {import('discord.js').Message} msg - Discord message
+   * @param {string} userId - User ID
+   * @param {string} content - Original message content
+   * @returns {Promise<boolean>} - True if handled
+   * @private
+   */
+  async _handleReminderModification(msg, userId, content) {
+    const doneMatch = content.match(/(?:done|complete|finish|completed|finished)\s+(\d+)/i);
+    if (doneMatch) {
+      const reminderId = doneMatch[1];
+      try {
+        await this.reminderManager.markReminderDone(reminderId, userId);
+        await msg.reply('🎉 Reminder marked as done! Nice work!');
+      } catch (error) {
+        // sendErrorReply(msg, 'I couldn’t find that reminder to mark as done.', error);
+        // Using sendNotFoundSuggestCreate for this specific case as it was the previous behavior
+        sendNotFoundSuggestCreate(msg, 'reminder');
+      }
       return true;
     }
 
-    // Move to category selection state
-    this.conversationStates.set(userId, { 
-      state: 'AWAITING_CATEGORY',
-      task: state.task,
-      time: dueTime
-    });
-    
-    // Show category selection prompt
-    const categories = await this.categoryManager.getAllCategories();
-    let message = "Thanks! Would you like to add this to a specific category?\n\n";
-    
-    if (categories.length > 0) {
-      message += categories.map((cat, i) => `${i+1}. ${cat.emoji} ${cat.name}`).join('\n');
-      message += "\n\nReply with the number, or 'none' if you don't want to use a category.";
-    } else {
-      message += "You don't have any categories set up yet. Reply with:\n";
-      message += "1. 'create [emoji] [name]' to create a new category\n";
-      message += "2. 'none' to continue without a category";
+    const deleteMatch = content.match(/(?:delete|remove|cancel)\s+(\d+)/i);
+    if (deleteMatch) {
+      const reminderId = deleteMatch[1];
+      try {
+        await this.reminderManager.deleteReminder(reminderId, userId);
+        await msg.reply(`🗑️ Reminder #${reminderId} has been deleted.`);
+      } catch (error) {
+        // sendErrorReply(msg, `I couldn’t find reminder #${reminderId} to delete.`, error);
+        // Using sendNotFoundSuggestCreate for this specific case
+        sendNotFoundSuggestCreate(msg, 'reminder');
+      }
+      return true;
     }
-    
-    await msg.reply(message);
-    return true;
+    return false;
   }
 
   /**
-   * Handle category response in conversation
-   * @param {Message} msg - Discord message
-   * @param {string} response - User response
+   * Handles reminder creation.
+   * @param {import('discord.js').Message} msg - Discord message
+   * @param {string} content - Original message content
    * @returns {Promise<boolean>} - True if handled
+   * @private
    */
-  async handleCategoryResponse(msg, response) {
-    const userId = msg.author.id;
-    const state = this.conversationStates.get(userId);
-    if (!state || state.state !== 'AWAITING_CATEGORY') return false;
-    
-    let categoryId = null;
-    
-    // Check if user said "none" or "skip"
-    if (response.toLowerCase().match(/^(none|skip|no|0)$/)) {
-      // Continue without a category
-    } else if (response.match(/^create (\p{Emoji_Presentation}|\p{Extended_Pictographic}) (.+)$/ui)) {
-      // Create a new category
-      const matches = response.match(/^create (\p{Emoji_Presentation}|\p{Extended_Pictographic}) (.+)$/ui);
-      const emoji = matches[1];
-      const name = matches[2].trim();
-      
-      try {
-        categoryId = await this.categoryManager.createCategory(name, emoji, `Created by ${msg.author.tag}`);
-        await this.categoryManager.subscribeUserToCategory(userId, categoryId);
-        await msg.reply(`✅ Created new category **${name}** ${emoji}! You're automatically subscribed.`);
-      } catch (error) {
-        console.error('Error creating category:', error);
-        await msg.reply('Sorry, I had trouble creating that category. I\'ll continue without a category.');
-      }
-    } else if (response.match(/^[1-9]\d*$/)) {
-      // User selected a category by number
-      const categoryIndex = parseInt(response) - 1;
-      const categories = await this.categoryManager.getAllCategories();
-      
-      if (categoryIndex >= 0 && categoryIndex < categories.length) {
-        categoryId = categories[categoryIndex].id;
-      } else {
-        await msg.reply(`That's not a valid category number. I'll continue without a category.`);
-      }
-    } else if (response.match(/(\p{Emoji_Presentation}|\p{Extended_Pictographic})/ui)) {
-      // User provided an emoji
-      const matches = response.match(/(\p{Emoji_Presentation}|\p{Extended_Pictographic})/ui);
-      const emoji = matches[1];
-      
-      const category = await this.categoryManager.getCategoryByEmoji(emoji);
-      if (category) {
-        categoryId = category.id;
-      } else {
-        await msg.reply(`I don't recognize a category with the emoji ${emoji}. I'll continue without a category.`);
-      }
-    } else {
-      await msg.reply(`I didn't understand that choice. I'll continue without a category.`);
+  async _handleReminderCreation(msg, content) {
+    if (content.toLowerCase().match(/(remind|todo|reminder|task|remember|don'?t forget|need to|have to|should|must)/i)) {
+      await ReminderFunctions.handleReminderCreation(
+        this.reminderManager,
+        this.categoryManager,
+        this.parser,
+        this.conversationFlowManager.conversationStates,
+        msg,
+        content,
+        this.conversationFlowManager
+      );
+      return true;
     }
-    
-    // Clear conversation state
-    this.conversationStates.delete(userId);
-    
-    // Create the reminder
-    const reminder = await this.reminderManager.createReminder(
-      msg.author.id,
-      msg.author.tag,
-      state.task,
-      state.time,
-      msg.channel.id,
-      categoryId
-    );
-    
-    // Confetti/celebratory feedback for first reminder creation
-    return msg.reply('🎊 Reminder created! I’ll remind you when it’s time.');
+    return false;
   }
 
   /**
@@ -470,9 +413,13 @@ class MessageHandler {
 
   /**
    * Show reminders summary with enhanced filtering
-   * @param {Message} msg - Discord message
+   * @param {import('discord.js').Message} msg - Discord message
    * @param {string} userId - User ID
    * @param {Object} options - Filter options
+   * @param {string} [options.timeFilter='all'] - Time filter ('all', 'today', 'week', 'overdue').
+   * @param {string} [options.categoryId=null] - Category ID to filter by.
+   * @param {boolean} [options.sortByPriority=false] - Whether to sort by priority.
+   * @returns {Promise<void>}
    */
   async showRemindersSummary(msg, userId, options = {}) {
     try {
@@ -580,8 +527,7 @@ class MessageHandler {
       
       return msg.reply({ embeds: [embed] });
     } catch (error) {
-      console.error('Error showing reminders summary:', error);
-      return msg.reply("Sorry, I couldn't retrieve your reminders. Please try again later.");
+      sendErrorReply(msg, "Sorry, I couldn't retrieve your reminders.", error);
     }
   }
 }

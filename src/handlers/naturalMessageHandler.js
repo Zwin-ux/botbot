@@ -1,22 +1,19 @@
 import { recognizeIntent } from '../utils/intentRecognizer.js';
 import { createEmbed, COLORS, EMOJIS } from '../utils/embedUtils.js';
+import config from '../config.js';
 
-// Minimum confidence threshold for automatic actions
-const MIN_CONFIDENCE = 0.3;
-
-// Wake word that makes the bot pay attention
-const WAKE_WORDS = [
-  'hey bot', 'okay bot', 'yo bot', 'bot', 'botbot',
-  'hey botbot', 'okay botbot', 'yo botbot'
-];
-
-// Time in milliseconds to stay in attentive mode (5 minutes)
-const ATTENTIVE_MODE_DURATION = 5 * 60 * 1000;
+const { MIN_CONFIDENCE, WAKE_WORDS, ATTENTIVE_MODE_DURATION } = config;
 
 class NaturalMessageHandler {
-  constructor(client, db) {
+  /**
+   * @param {import('discord.js').Client} client - The Discord client.
+   * @param {any} db - Database connection/utility.
+   * @param {IntentService} intentService - Instance of the IntentService.
+   */
+  constructor(client, db, intentService) {
     this.client = client;
     this.db = db;
+    this.intentService = intentService;
     this.userStates = new Map(); // Track user conversation states
     this.cooldowns = new Map(); // Track command cooldowns
     this.attentiveUsers = new Map(); // Track users in attentive mode
@@ -235,32 +232,42 @@ class NaturalMessageHandler {
       return true;
     }
 
-    // Handle the specific intent
+    // Attempt to handle the intent via IntentService
+    // Pass relevant services or handlers that IntentService might need
+    const handledByService = await this.intentService.processIntent(
+      intent,
+      confidence,
+      entities,
+      message,
+      userState
+    );
+
+    if (handledByService) {
+      return true;
+    }
+
+    // Fallback to existing direct handling for intents not yet migrated or specific to NLU
     switch (intent) {
       case 'start_meeting':
         await this.handleMeetingIntent(message, entities);
         return true;
         
-      case 'set_reminder':
-        userState.awaitingReminderTime = true;
-        await message.reply('I\'ll remind you of that. When should I remind you?');
-        return true;
-        
+      // 'set_reminder' and 'help' will be handled by IntentService if configured correctly.
+      // If IntentService.processIntent returns false for them, they won't be handled here.
+      // This means their direct handling logic here will become dead code once IntentService implements them.
+
       case 'blocked':
         await this.handleBlockedIntent(message);
         return true;
         
       case 'start_game':
+        // This could also be routed via IntentService if GameHandler is passed to it.
         await this.handleGameIntent(message, entities);
         return true;
         
-      case 'help':
-        await message.reply(response || "I'm here to help! You can ask me about reminders, meetings, or games.");
-        return true;
-        
       default:
-        // Handle unknown intents or low confidence
-        if (intent === 'unknown' || confidence < 0.5) {
+        // Handle unknown intents or low confidence if not caught by MIN_CONFIDENCE check earlier
+        if (intent === 'unknown' || confidence < 0.5) { // This check might be redundant if already handled
           const fallbackResponses = [
             "I'm not sure I understand. Could you rephrase that?",
             "I didn't quite catch that. Can you try saying it differently?",

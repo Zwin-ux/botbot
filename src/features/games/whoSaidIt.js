@@ -1,4 +1,4 @@
-const EventEmitter = require('events');
+import EventEmitter from 'events';
 
 // Default quotes (can be expanded or loaded from a database)
 const DEFAULT_QUOTES = [
@@ -153,4 +153,4 @@ class WhoSaidIt extends EventEmitter {
   }
 }
 
-module.exports = WhoSaidIt;
+export default WhoSaidIt;

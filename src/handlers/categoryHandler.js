@@ -222,4 +222,4 @@ class CategoryHandler {
   }
 }
 
-module.exports = CategoryHandler;
+export default CategoryHandler;

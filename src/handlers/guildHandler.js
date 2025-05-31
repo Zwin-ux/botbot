@@ -631,4 +631,4 @@ class GuildHandler {
   }
 }
 
-module.exports = GuildHandler;
+export default GuildHandler;

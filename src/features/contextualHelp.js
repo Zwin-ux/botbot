@@ -1,6 +1,6 @@
-const { EmbedBuilder } = require('discord.js');
+import { EmbedBuilder } from 'discord.js';
 
-function getContextualHelp({ channelType, isAgentChannel, isDM, isOwner, isAdmin }) {
+export function getContextualHelp({ channelType, isAgentChannel, isDM, isOwner, isAdmin }) {
   let title = '🤖 BotBot Help';
   let description = '';
   let fields = [];
@@ -37,4 +37,4 @@ function getContextualHelp({ channelType, isAgentChannel, isDM, isOwner, isAdmin
     .setFooter({ text: 'Type commands in plain English. I’ll help you out!' });
 }
 
-module.exports = { getContextualHelp };
+// No longer using module.exports, direct export of the function.

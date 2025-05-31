@@ -1,4 +1,4 @@
-const EventEmitter = require('events');
+import EventEmitter from 'events';
 
 class StoryBuilder extends EventEmitter {
   constructor(client, channel, db, options = {}) {
@@ -213,4 +213,4 @@ class StoryBuilder extends EventEmitter {
   }
 }
 
-module.exports = StoryBuilder;
+export default StoryBuilder;

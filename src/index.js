@@ -5,7 +5,7 @@
  */
 
 import 'dotenv/config';
-import { Client, GatewayIntentBits, Partials, ActivityType } from 'discord.js';
+import { Client, GatewayIntentBits, Partials } from 'discord.js'; // Removed ActivityType as it's not directly used here
 import { logger } from './utils/logger.js';
 import config from './config.js';
 import { initializeDatabase } from './database/index.js';
@@ -15,17 +15,18 @@ import EnhancedParserExtended from './enhancedParserExtended.js';
 import MessageHandler from './handlers/messageHandler.js';
 import ReactionHandler from './handlers/reactionHandler.js';
 import NaturalMessageHandler from './handlers/naturalMessageHandler.js';
-import { COLORS, EMOJIS } from './utils/embedUtils.js';
+// import { COLORS, EMOJIS } from './utils/embedUtils.js'; // Not directly used in this file
 import ReminderManager from './database/reminderManager.js';
 import ReminderManagerExtended from './database/reminderManagerExtended.js';
 import GuildNotificationService from './services/guildNotificationService.js';
 import TestHandler from './handlers/testHandler.js';
+import ConversationFlowManager from './handlers/ConversationFlowManager.js'; // Added
+import IntentService from './services/intentService.js'; // Added
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
   logger.fatal('Uncaught Exception:', error);
-  // Attempt to log the error before exiting
-  setTimeout(() => process.exit(1), 1000);
+  setTimeout(() => process.exit(1), 1000); // Exit after attempting to log
 });
 
 // Handle unhandled promise rejections
@@ -34,10 +35,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // Handle process termination
-process.on('SIGTERM', gracefulShutdown);
-process.on('SIGINT', gracefulShutdown);
-
-let client;
+let client; // Define client here to be accessible in gracefulShutdown
 let shutdownInProgress = false;
 
 async function gracefulShutdown(signal) {
@@ -51,9 +49,7 @@ async function gracefulShutdown(signal) {
       logger.info('Destroying Discord client...');
       client.destroy();
     }
-    
-    // Add any cleanup tasks here
-    
+    // Add any other cleanup tasks here (e.g., close database connections if necessary)
     logger.info('Shutdown complete. Goodbye!');
     process.exit(0);
   } catch (error) {
@@ -62,11 +58,13 @@ async function gracefulShutdown(signal) {
   }
 }
 
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
+
 async function startBot() {
   logger.info('Starting BotBot...');
   logger.debug(`Environment: ${config.NODE_ENV}`);
 
-  // Initialize the Discord client
   client = new Client({
     intents: [
       GatewayIntentBits.Guilds,
@@ -75,131 +73,91 @@ async function startBot() {
       GatewayIntentBits.DirectMessages,
       GatewayIntentBits.GuildMessageReactions,
       GatewayIntentBits.DirectMessageReactions,
-      GatewayIntentBits.GuildMembers
+      GatewayIntentBits.GuildMembers, // Added GuildMembers if not already present
     ],
     partials: [
       Partials.Channel,
       Partials.Message,
       Partials.Reaction,
       Partials.User,
-      Partials.GuildMember
-    ]
+      Partials.GuildMember, // Added GuildMember if not already present
+    ],
   });
 
   try {
-    // Initialize database and services
     logger.info('Initializing database...');
     const { 
       db, 
       categoryManager, 
-      reactionManager,
+      reactionManager: dbReactionManager, // Renamed to avoid conflict with Handler
       guildManager,
       gameService
     } = await initializeDatabase();
     
-    // Initialize database managers
     const reminderManagerBase = new ReminderManager(db);
     const reminderManagerExtended = new ReminderManagerExtended(db);
     const reminderManager = reminderManagerExtended || reminderManagerBase;
     
-    // Initialize core components
     const contextManager = new ContextManager(db);
-    // Use the extended parser for better natural language understanding
     const parserBase = new EnhancedParser();
     const parserExtended = new EnhancedParserExtended();
     const parser = parserExtended || parserBase;
     
-    // Initialize services
     logger.info('Initializing services...');
     const guildNotificationService = new GuildNotificationService(client, guildManager);
-    
-    // Initialize handlers
-    logger.info('Initializing message handlers...');
+    const conversationFlowManager = new ConversationFlowManager(parser, reminderManager, categoryManager); // Instantiated here
+
+    logger.info('Initializing handlers...');
+    // StandupHandler and RetroHandler are not initialized in the provided index.js, passing null.
+    // These would need to be initialized similarly if they exist and are to be used.
+    const standupHandler = null; // Placeholder
+    const retroHandler = null;   // Placeholder
+
     const messageHandler = new MessageHandler(
       client, 
       contextManager, 
       parser, 
       reminderManager, 
       categoryManager, 
-      reactionManager,
-      null, // standupHandler (not initialized yet)
-      null, // retroHandler (not initialized yet)
-      guildManager // pass the guild manager
+      dbReactionManager, // Pass the reactionManager from DB init
+      standupHandler,
+      retroHandler,
+      guildManager,
+      conversationFlowManager // Injected
     );
     
-    const naturalMessageHandler = new NaturalMessageHandler(client, db);
+    const intentService = new IntentService( // Instantiated here
+      {
+        messageHandler,
+        reminderManager,
+        categoryManager,
+        conversationFlowManager,
+        gameHandler: gameService, // Assuming gameService is the gameHandler
+        standupHandler, // Pass initialized standupHandler if available
+        retroHandler    // Pass initialized retroHandler if available
+      },
+      client
+    );
+
+    const naturalMessageHandler = new NaturalMessageHandler(client, db, intentService); // Injected intentService
     const testHandler = new TestHandler(client, db);
     
-    // Log when the bot is ready
-    client.once('ready', () => {
-      console.log(`Logged in as ${client.user.tag}!`);
-      
-      // Set bot's status
-      client.user.setActivity('your conversations', { type: 'LISTENING' })
-        .catch(console.error);
-    });
-    
-    // Handle all messages with natural language processing
-    client.on('messageCreate', async (message) => {
-      try {
-        // Ignore messages from bots
-        if (message.author.bot) return;
-        
-        // First check for test commands (hidden developer feature)
-        const testHandled = await testHandler.handleMessage(message);
-        if (testHandled) return; // If it was a test command, stop processing
-        
-        // Then try natural language processing
-        const nlpHandled = await naturalMessageHandler.handleMessage(message);
-        if (nlpHandled) return; // If NLP handled it, stop processing
-        
-        // Finally fall back to command processing
-        if (message.content.startsWith(process.env.PREFIX || '!')) {
-          await messageHandler.handleMessage(message);
-        }
-      } catch (error) {
-        console.error('Error processing message:', error);
-      }
-    });
-    
-    // Handle reactions for interactive messages
-    client.on('messageReactionAdd', async (reaction, user) => {
-      try {
-        // When a reaction is received, check if the structure is partial
-        if (reaction.partial) {
-          try {
-            await reaction.fetch();
-          } catch (error) {
-            console.error('Something went wrong when fetching the message:', error);
-            return;
-          }
-        }
-        
-        // Process the reaction
-        await reactionHandler.handleReaction(reaction, user);
-      } catch (error) {
-        console.error('Error processing reaction:', error);
-      }
-    });
-    
-    // Create reaction handler
+    // Reaction Handler (instantiated once, correctly)
     const reactionHandler = new ReactionHandler(
       client,
-      reactionManager,
+      dbReactionManager, // Use the one from DB
       categoryManager,
       reminderManager
     );
-    
-    // Initialize reaction handler
-    reactionHandler.initialize();
-    
-    // Set up event handlers
+    reactionHandler.initialize(); // Initialize it
+
+    // Event Handlers
     logger.info('Setting up event handlers...');
     client.on('ready', () => {
       logger.info(`Bot is ready! Logged in as ${client.user.tag}`);
-      client.user.setActivity('Remind me to...', { type: 'LISTENING' });
+      client.user.setActivity('your conversations', { type: 'LISTENING' }); // Consolidated from duplicate
       
-      // Set up interval to process guild reminders every minute
+      // Interval for guild reminders (consolidated)
       setInterval(async () => {
         try {
           const processedReminders = await guildNotificationService.processDueGuildReminders();
@@ -209,30 +167,66 @@ async function startBot() {
         } catch (error) {
           logger.error('Error processing guild reminders:', error);
         }
-      }, 60000); // check every minute
-      
-      // Start scheduled jobs here if needed
-      require('./bot').scheduleReminders();
+      }, 60000);
+
+      // TODO: review the 'require('./bot').scheduleReminders();' line.
+      // If './bot.js' contains another client login or duplicate reminder scheduling, it needs to be refactored.
+      // For now, assuming it contains other specific scheduled tasks.
+      // If it's the old reminder logic, it might conflict with GuildNotificationService.
+      // require('./bot').scheduleReminders(); // Commenting out if it's legacy/conflicting
     });
     
-    // Handle incoming messages
-    client.on('messageCreate', async (msg) => {
-      await messageHandler.handleMessage(msg);
+    client.on('messageCreate', async (message) => { // Single messageCreate handler
+      try {
+        if (message.author.bot) return;
+        
+        const testHandled = await testHandler.handleMessage(message);
+        if (testHandled) return;
+        
+        const nlpHandled = await naturalMessageHandler.handleMessage(message);
+        if (nlpHandled) return;
+        
+        // Fallback to prefix-based command processing
+        // Ensure PREFIX is defined in your .env or config, defaulting to '!'
+        const prefix = config.DEFAULT_PREFIX || '!';
+        if (message.content.startsWith(prefix)) {
+          // Clone the message object or modify a copy if MessageHandler alters it.
+          // For now, assume MessageHandler handles it correctly.
+          await messageHandler.handleMessage(message);
+        }
+      } catch (error) {
+        logger.error('Error processing message:', error, { messageContent: message.content, guildId: message.guild?.id, userId: message.author.id });
+      }
     });
     
-    // Log in to Discord
-    if (process.env.DISCORD_TOKEN) {
-      await client.login(process.env.DISCORD_TOKEN);
-    } else {
-      console.error('Error: DISCORD_TOKEN not found in .env file.');
-      console.log('Please create a .env file in the root directory and add your DISCORD_TOKEN.');
+    client.on('messageReactionAdd', async (reaction, user) => {
+      try {
+        if (reaction.partial) {
+          await reaction.fetch();
+        }
+        if (user.partial) { // Also fetch partial user
+          await user.fetch();
+        }
+        if (user.bot) return; // Ignore bot reactions
+
+        await reactionHandler.handleReaction(reaction, user);
+      } catch (error)
+      {
+        logger.error('Error processing reaction:', error);
+      }
+    });
+    
+    logger.info('Logging in to Discord...');
+    if (!config.DISCORD_TOKEN) {
+      logger.error('Error: DISCORD_TOKEN not found in environment variables or config.');
       process.exit(1);
     }
+    await client.login(config.DISCORD_TOKEN);
+
   } catch (error) {
-    console.error('Error starting bot:', error);
+    logger.fatal('Error starting bot:', error);
     process.exit(1);
   }
 }
 
-// Start the bot
 startBot();

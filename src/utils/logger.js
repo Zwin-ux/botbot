@@ -184,14 +184,10 @@ logger.logApiResponse = (response, context = {}) => {
   }, `API Response: ${status} ${statusText}`);
 };
 
-/**
- * Creates a child logger with bound context
- * @param {Object} context - Context to bind to all logs
- * @returns {Object} Child logger instance
- */
-logger.child = (context) => {
-  return logger.child(context);
-};
+// Pino's logger.child() is available directly on the logger instance.
+// The previous recursive wrapper `logger.child = (context) => { return logger.child(context); };`
+// caused a stack overflow and was incorrect.
+// Users should use `logger.child(bindings)` directly as provided by Pino.
 
 // Export the logger
 export { logger };

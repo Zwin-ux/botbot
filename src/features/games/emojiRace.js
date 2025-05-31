@@ -1,4 +1,4 @@
-const EventEmitter = require('events');
+import EventEmitter from 'events';
 
 // Safe emojis that work across all platforms
 const EMOJIS = ['🔥', '🚀', '⭐', '🎯', '🎲', '🎮', '🏆', '🍎', '⚡', '🌈'];
@@ -129,4 +129,4 @@ class EmojiRace extends EventEmitter {
   }
 }
 
-module.exports = EmojiRace;
+export default EmojiRace;

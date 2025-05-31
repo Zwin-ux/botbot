@@ -3,6 +3,9 @@
  * Creates standardized Discord embeds for guild-related UI elements
  */
 
+import config from '../config.js'; // For URL constants
+import { createEmbed, COLORS } from './embedUtils.js'; // For standardized embeds
+
 /**
  * Create a guild profile embed
  * @param {Object} guild - Guild object
@@ -11,7 +14,7 @@
  * @param {string} viewerId - ID of the user viewing the profile
  * @returns {Object} Discord embed object
  */
-const createGuildProfileEmbed = (guild, members, reminders, viewerId) => {
+export const createGuildProfileEmbed = (guild, members, reminders, viewerId) => {
   // Find user's role
   const viewerMember = members.find(m => m.userId === viewerId);
   const userRole = viewerMember 
@@ -44,12 +47,13 @@ const createGuildProfileEmbed = (guild, members, reminders, viewerId) => {
     ? `\n...and ${members.length - 5} more` 
     : '');
 
-  return {
-    color: 0x3498db,
+  return { // This still returns a raw embed object, not using createEmbed.
+            // This could be a future step if further standardization is desired for its structure.
+    color: 0x3498db, // Consider using COLORS.INFO or a specific guild color
     title: `${guild.emoji || '🏰'} ${guild.name}`,
     description: guild.description || '*No description set*',
     thumbnail: {
-      url: 'https://i.imgur.com/pTIHvDG.png' // A castle icon - can be customized
+      url: config.GUILD_PROFILE_THUMBNAIL_URL
     },
     fields: [
       {
@@ -80,13 +84,14 @@ const createGuildProfileEmbed = (guild, members, reminders, viewerId) => {
  * @param {Object} inviter - User who sent the invite
  * @returns {Object} Discord embed object
  */
-const createInviteEmbed = (guild, inviter) => {
+export const createInviteEmbed = (guild, inviter) => {
+  // This also returns a raw embed object. Could be standardized with createEmbed too.
   return {
-    color: 0x3498db,
+    color: 0x3498db, // Consider using COLORS.INFO
     title: `Guild Invitation: ${guild.name}`,
     description: `You've been invited to join a guild!`,
     thumbnail: {
-      url: 'https://i.imgur.com/E5bXEeH.png' // An invite icon - can be customized
+      url: config.GUILD_INVITE_THUMBNAIL_URL
     },
     fields: [
       {
@@ -119,7 +124,7 @@ const createInviteEmbed = (guild, inviter) => {
  * @param {Object} creator - User who created the reminder
  * @returns {Object} Discord embed
  */
-const createGuildReminderEmbed = (reminder, guild, creator) => {
+export const createGuildReminderEmbed = (reminder, guild, creator) => {
   const fields = [
     {
       name: 'Task',
@@ -132,7 +137,6 @@ const createGuildReminderEmbed = (reminder, guild, creator) => {
     }
   ];
 
-  // Add due time if available
   if (reminder.dueTime) {
     fields.push({
       name: 'Due',
@@ -141,7 +145,6 @@ const createGuildReminderEmbed = (reminder, guild, creator) => {
     });
   }
   
-  // Add creator if available
   if (creator) {
     fields.push({
       name: 'Created By',
@@ -150,20 +153,20 @@ const createGuildReminderEmbed = (reminder, guild, creator) => {
     });
   }
 
-  // Add completion instructions
   fields.push({
     name: 'Mark as Complete',
     value: `Say "complete guild task ${reminder.id}"`
   });
 
-  return {
-    color: 0xf39c12,
-    title: `📝 Guild Task`,
+  return createEmbed({ // Using createEmbed here
+    title: '📝 Guild Task',
     fields: fields,
+    color: COLORS.WARNING, // Or another appropriate color
     footer: { 
       text: `Task ID: ${reminder.id} • Created: ${new Date(reminder.createdAt).toLocaleDateString()}`
-    }
-  };
+    },
+    timestamp: false // Assuming createdAt in footer is enough
+  });
 };
 
 /**
@@ -171,15 +174,16 @@ const createGuildReminderEmbed = (reminder, guild, creator) => {
  * @param {Array} guilds - List of guilds
  * @returns {Object} Discord embed
  */
-const createGuildListEmbed = (guilds) => {
+export const createGuildListEmbed = (guilds) => {
   const guildItems = guilds.map((guild, index) => {
     return `${index + 1}. ${guild.emoji || '🏰'} **${guild.name}**${guild.description ? ` - *${guild.description}*` : ''}`;
   });
 
-  return {
-    color: 0x3498db,
+  // Using createEmbed for this one too for consistency
+  return createEmbed({
     title: 'Your Guilds',
     description: guildItems.join('\n\n'),
+    color: COLORS.INFO,
     fields: [
       {
         name: 'View Guild Details',
@@ -190,8 +194,9 @@ const createGuildListEmbed = (guilds) => {
         value: 'Say "create guild called [name]" to start your own guild'
       }
     ],
-    footer: { text: `${guilds.length} guild${guilds.length === 1 ? '' : 's'} total` }
-  };
+    footer: { text: `${guilds.length} guild${guilds.length === 1 ? '' : 's'} total` },
+    timestamp: false
+  });
 };
 
 /**
@@ -201,14 +206,16 @@ const createGuildListEmbed = (guilds) => {
  * @param {Array} fields - Additional fields
  * @returns {Object} Discord embed
  */
-const createSuccessEmbed = (title, description, fields = []) => {
-  return {
-    color: 0x2ecc71,
+export const createSuccessEmbed = (title, description, fields = []) => {
+  return createEmbed({
     title: title,
     description: description,
     fields: fields,
-    footer: { text: 'Action completed successfully' }
-  };
+    color: COLORS.SUCCESS,
+    emoji: '✅', // Standard success emoji
+    footer: { text: 'Action completed successfully' },
+    timestamp: true
+  });
 };
 
 /**
@@ -218,21 +225,14 @@ const createSuccessEmbed = (title, description, fields = []) => {
  * @param {Array} fields - Additional fields with suggestions
  * @returns {Object} Discord embed
  */
-const createErrorEmbed = (title, description, fields = []) => {
-  return {
-    color: 0xe74c3c,
+export const createErrorEmbed = (title, description, fields = []) => {
+  return createEmbed({
     title: title,
     description: description,
     fields: fields,
-    footer: { text: 'Error occurred' }
-  };
-};
-
-module.exports = {
-  createGuildProfileEmbed,
-  createInviteEmbed,
-  createGuildReminderEmbed,
-  createGuildListEmbed,
-  createSuccessEmbed,
-  createErrorEmbed
+    color: COLORS.DANGER,
+    emoji: '❌', // Standard error emoji
+    footer: { text: 'Error occurred' },
+    timestamp: true
+  });
 };

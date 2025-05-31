@@ -5,10 +5,12 @@ import { logger } from '../utils/logger.js';
 import config from '../config.js';
 
 // Import managers
+import AgentManager from './agentManager.js'; // Added
 import CategoryManager from './categoryManager.js';
+import GuildManager from './guildManager.js';
 import ReactionManager from './reactionManager.js';
 import ReminderManager from './reminderManager.js';
-import GuildManager from './guildManager.js';
+import ReminderManagerExtended from './reminderManagerExtended.js'; // Added
 
 // Import services
 import GameService from '../services/gameService.js';
@@ -17,26 +19,29 @@ import GameService from '../services/gameService.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Promisify database methods
-const promisifyDb = (db) => ({
+// Promisify database methods for the raw sqlite3 instance
+const promisifyDb = (sqliteDb) => ({
   run: (sql, params = []) => new Promise((resolve, reject) => {
-    db.run(sql, params, function(err) {
+    sqliteDb.run(sql, params, function(err) { // Use function() for this.lastID/changes
       if (err) reject(err);
       else resolve(this);
     });
   }),
   get: (sql, params = []) => new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
+    sqliteDb.get(sql, params, (err, row) => {
       if (err) reject(err);
       else resolve(row);
     });
   }),
   all: (sql, params = []) => new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
+    sqliteDb.all(sql, params, (err, rows) => {
       if (err) reject(err);
       else resolve(rows || []);
     });
-  })
+  }),
+  // each is not easily promisified to return all rows, usually used for streaming.
+  // The existing eachAsync in the original file was a custom promisification.
+  // For simplicity, if each is needed, it can be wrapped where used or a different approach taken.
 });
 
 /**
@@ -44,7 +49,6 @@ const promisifyDb = (db) => ({
  * @returns {Promise<Object>} Database and manager instances
  */
 export async function initializeDatabase() {
-  // Ensure data directory exists
   const fs = await import('fs/promises');
   try {
     await fs.mkdir(config.DATA_DIR, { recursive: true });
@@ -56,7 +60,6 @@ export async function initializeDatabase() {
     }
   }
 
-  // Initialize SQLite database with better-sqlite3
   const dbPath = path.join(config.DATA_DIR, 'botbot.db');
   logger.info(`Initializing database: ${dbPath}`);
 
@@ -65,69 +68,81 @@ export async function initializeDatabase() {
     const sqlite = new sqlite3.Database(dbPath, (err) => {
       if (err) {
         logger.error('Error opening database:', err.message);
-        throw err;
+        throw err; // This error needs to be caught by the outer try/catch
       }
       logger.info('Connected to the SQLite database');
     });
     
-    // Create a promisified wrapper around the sqlite3 database
-    const db = promisifyDb(sqlite);
-    
-    // Enable WAL mode for better concurrency
-    await db.run('PRAGMA journal_mode = WAL');
-    await db.run('PRAGMA foreign_keys = ON');
-    await db.run('PRAGMA busy_timeout = 5000');
-    
-    // Skip migrations for now to simplify the fix
-    logger.info('Skipping migrations for now');
-    
-    // Initialize managers
-    const categoryManager = new CategoryManager(db);
-    const reactionManager = new ReactionManager(db);
-    const reminderManager = new ReminderManager(db);
-    const guildManager = new GuildManager(db);
-    
-    // Initialize services
-    const gameService = new GameService(db);
-    
-    // Add promisified methods to db instance
-    const dbMethods = promisifyDb(db);
-    db.runAsync = dbMethods.run;
-    db.getAsync = dbMethods.get;
-    db.allAsync = dbMethods.all;
-    
-    // Add eachAsync method
+    // This 'db' object is the raw sqlite3.Database instance.
+    // We will augment it with promisified methods.
+    const db = sqlite;
+    const promisifiedMethods = promisifyDb(db);
+    db.runAsync = promisifiedMethods.run;
+    db.getAsync = promisifiedMethods.get;
+    db.allAsync = promisifiedMethods.all;
+    // Retaining custom eachAsync if it was used, though it's not standard.
+    // It's better to use allAsync if all rows are needed.
     db.eachAsync = function(sql, params = []) {
       return new Promise((resolve, reject) => {
         const rows = [];
-        db.each(sql, params, (err, row) => {
+        this.each(sql, params, (err, row) => { // 'this' here refers to the sqlite.Database instance
           if (err) return reject(err);
           rows.push(row);
-        }, (err) => {
-          if (err) return reject(err);
-          resolve(rows);
+        }, (errOuter, count) => { // The callback for db.each has (err, count)
+          if (errOuter) return reject(errOuter);
+          resolve(rows); // Resolve with all rows collected
         });
       });
     };
     
-    logger.info('Database initialized successfully');
+    await db.runAsync('PRAGMA journal_mode = WAL');
+    await db.runAsync('PRAGMA foreign_keys = ON');
+    await db.runAsync('PRAGMA busy_timeout = 5000');
+    
+    // TODO: Implement actual migration runner call here instead of skipping
+    logger.info('Skipping migrations for now (TODO: Implement migration runner)');
+    
+    // Initialize managers
+    const agentManager = new AgentManager(db);
+    await agentManager.initializeDatabase(); // Call async initialization
+
+    const categoryManager = new CategoryManager(db);
+    // categoryManager does not have an async init method in its class structure
+
+    const guildManager = new GuildManager(db);
+    // guildManager does not have an async init method
+
+    const reactionManager = new ReactionManager(db);
+    // reactionManager does not have an async init method
+
+    const reminderManager = new ReminderManager(db);
+    // reminderManager does not have an async init method
+
+    const reminderManagerExtended = new ReminderManagerExtended(db);
+    await reminderManagerExtended.setupTables(); // Call async initialization
+    
+    // Initialize services
+    const gameService = new GameService(db); // Assuming GameService constructor is sync
+    
+    logger.info('Database and managers initialized successfully');
     
     return {
-      db,
+      db, // The augmented db instance
+      agentManager,
       categoryManager,
+      guildManager,
       reactionManager,
       reminderManager,
-      guildManager,
+      reminderManagerExtended,
       gameService,
-      // Helper method for transactions
       runInTransaction: async (fn) => {
-        await db.run('BEGIN TRANSACTION');
+        await db.runAsync('BEGIN TRANSACTION');
         try {
-          const result = await fn(db);
-          await db.run('COMMIT');
+          const result = await fn(db); // Pass the augmented db to the transaction function
+          await db.runAsync('COMMIT');
           return result;
         } catch (error) {
-          await db.run('ROLLBACK');
+          await db.runAsync('ROLLBACK');
           logger.error('Transaction failed:', error);
           throw error;
         }
@@ -140,7 +155,7 @@ export async function initializeDatabase() {
   }
 }
 
-// For backward compatibility with CommonJS
+// For backward compatibility with CommonJS (though the project is ES6)
 const dbModule = {
   initializeDatabase
 };

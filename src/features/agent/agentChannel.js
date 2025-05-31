@@ -1,5 +1,5 @@
-const { PermissionsBitField, ChannelType, EmbedBuilder } = require('discord.js');
-const AgentManager = require('../../database/agentManager');
+import { PermissionsBitField, ChannelType, EmbedBuilder } from 'discord.js';
+import AgentManager from '../../database/agentManager.js'; // Assuming agentManager.js now uses export default
 
 class AgentChannel {
   constructor(client, db) {
@@ -102,4 +102,4 @@ class AgentChannel {
   }
 }
 
-module.exports = AgentChannel;
+export default AgentChannel;

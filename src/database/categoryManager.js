@@ -11,12 +11,8 @@ class CategoryManager {
    * @returns {Promise<Array>} Array of category objects
    */
   async getAllCategories() {
-    return new Promise((resolve, reject) => {
-      this.db.all('SELECT * FROM categories ORDER BY name ASC', (err, rows) => {
-        if (err) return reject(err);
-        resolve(rows);
-      });
-    });
+    // Assuming db.allAsync is available from initializeDatabase
+    return this.db.allAsync('SELECT * FROM categories ORDER BY name ASC');
   }
 
   /**
@@ -25,12 +21,7 @@ class CategoryManager {
    * @returns {Promise<Object>} Category object
    */
   async getCategoryById(id) {
-    return new Promise((resolve, reject) => {
-      this.db.get('SELECT * FROM categories WHERE id = ?', [id], (err, row) => {
-        if (err) return reject(err);
-        resolve(row);
-      });
-    });
+    return this.db.getAsync('SELECT * FROM categories WHERE id = ?', [id]);
   }
 
   /**
@@ -39,12 +30,7 @@ class CategoryManager {
    * @returns {Promise<Object>} Category object
    */
   async getCategoryByEmoji(emoji) {
-    return new Promise((resolve, reject) => {
-      this.db.get('SELECT * FROM categories WHERE emoji = ?', [emoji], (err, row) => {
-        if (err) return reject(err);
-        resolve(row);
-      });
-    });
+    return this.db.getAsync('SELECT * FROM categories WHERE emoji = ?', [emoji]);
   }
 
   /**
@@ -55,16 +41,11 @@ class CategoryManager {
    * @returns {Promise<number>} New category ID
    */
   async createCategory(name, emoji, description = '') {
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        'INSERT INTO categories (name, emoji, description) VALUES (?, ?, ?)',
-        [name, emoji, description],
-        function(err) {
-          if (err) return reject(err);
-          resolve(this.lastID);
-        }
-      );
-    });
+    const stmt = await this.db.runAsync(
+      'INSERT INTO categories (name, emoji, description) VALUES (?, ?, ?)',
+      [name, emoji, description]
+    );
+    return stmt.lastID;
   }
 
   /**
@@ -74,16 +55,12 @@ class CategoryManager {
    * @returns {Promise<boolean>} Success status
    */
   async subscribeUserToCategory(userId, categoryId) {
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        'INSERT OR REPLACE INTO subscriptions (userId, categoryId) VALUES (?, ?)',
-        [userId, categoryId],
-        function(err) {
-          if (err) return reject(err);
-          resolve(true);
-        }
-      );
-    });
+    // runAsync resolves with the statement object. If no error, assume success.
+    await this.db.runAsync(
+      'INSERT OR REPLACE INTO subscriptions (userId, categoryId) VALUES (?, ?)',
+      [userId, categoryId]
+    );
+    return true;
   }
 
   /**
@@ -93,16 +70,11 @@ class CategoryManager {
    * @returns {Promise<boolean>} Success status
    */
   async unsubscribeUserFromCategory(userId, categoryId) {
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        'DELETE FROM subscriptions WHERE userId = ? AND categoryId = ?',
-        [userId, categoryId],
-        function(err) {
-          if (err) return reject(err);
-          resolve(this.changes > 0);
-        }
-      );
-    });
+    const stmt = await this.db.runAsync(
+      'DELETE FROM subscriptions WHERE userId = ? AND categoryId = ?',
+      [userId, categoryId]
+    );
+    return stmt.changes > 0;
   }
 
   /**
@@ -111,19 +83,13 @@ class CategoryManager {
    * @returns {Promise<Array>} Array of category objects
    */
   async getUserSubscriptions(userId) {
-    return new Promise((resolve, reject) => {
-      this.db.all(
-        `SELECT c.* FROM categories c
-         JOIN subscriptions s ON c.id = s.categoryId
-         WHERE s.userId = ?
-         ORDER BY c.name ASC`,
-        [userId],
-        (err, rows) => {
-          if (err) return reject(err);
-          resolve(rows);
-        }
-      );
-    });
+    return this.db.allAsync(
+      `SELECT c.* FROM categories c
+       JOIN subscriptions s ON c.id = s.categoryId
+       WHERE s.userId = ?
+       ORDER BY c.name ASC`,
+      [userId]
+    );
   }
 
   /**
@@ -132,16 +98,11 @@ class CategoryManager {
    * @returns {Promise<Array>} Array of user IDs
    */
   async getCategorySubscribers(categoryId) {
-    return new Promise((resolve, reject) => {
-      this.db.all(
-        'SELECT userId FROM subscriptions WHERE categoryId = ?',
-        [categoryId],
-        (err, rows) => {
-          if (err) return reject(err);
-          resolve(rows.map(row => row.userId));
-        }
-      );
-    });
+    const rows = await this.db.allAsync(
+      'SELECT userId FROM subscriptions WHERE categoryId = ?',
+      [categoryId]
+    );
+    return rows.map(row => row.userId);
   }
 }
 

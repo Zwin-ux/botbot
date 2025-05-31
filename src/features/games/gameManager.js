@@ -1,6 +1,6 @@
-const EmojiRace = require('./emojiRace');
-const StoryBuilder = require('./storyBuilder');
-const WhoSaidIt = require('./whoSaidIt');
+import EmojiRace from './emojiRace.js';
+import StoryBuilder from './storyBuilder.js';
+import WhoSaidIt from './whoSaidIt.js';
 
 class GameManager {
   constructor(client, db) {
@@ -55,4 +55,4 @@ class GameManager {
   }
 }
 
-module.exports = GameManager;
+export default GameManager;

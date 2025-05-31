@@ -301,4 +301,4 @@ class ReminderFunctions {
   }
 }
 
-module.exports = ReminderFunctions;
+export default ReminderFunctions;

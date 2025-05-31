@@ -76,6 +76,15 @@ const defaults = {
   // Error handling
   ERROR_MESSAGE: '❌ An error occurred. The developers have been notified.',
   COOLDOWN_MESSAGE: '⏳ Please wait before using that command again.',
+
+  // Natural Language Processing
+  MIN_CONFIDENCE: parseFloat(process.env.MIN_CONFIDENCE || '0.3'),
+  WAKE_WORDS: (process.env.WAKE_WORDS || 'hey bot,okay bot,yo bot,bot,botbot,hey botbot,okay botbot,yo botbot').split(',').map(w => w.trim()).filter(Boolean),
+  ATTENTIVE_MODE_DURATION: parseInt(process.env.ATTENTIVE_MODE_DURATION || (5 * 60 * 1000).toString(), 10), // 5 minutes
+
+  // Embed specific URLs
+  GUILD_PROFILE_THUMBNAIL_URL: process.env.GUILD_PROFILE_THUMBNAIL_URL || 'https://i.imgur.com/pTIHvDG.png',
+  GUILD_INVITE_THUMBNAIL_URL: process.env.GUILD_INVITE_THUMBNAIL_URL || 'https://i.imgur.com/E5bXEeH.png',
 };
 
 // Production overrides

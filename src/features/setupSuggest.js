@@ -1,6 +1,6 @@
-const { EmbedBuilder, ButtonBuilder, ActionRowBuilder, ButtonStyle } = require('discord.js');
+import { EmbedBuilder, ButtonBuilder, ActionRowBuilder, ButtonStyle } from 'discord.js';
 
-function getSetupSuggestion(feature) {
+export function getSetupSuggestion(feature) {
   let title, desc, buttonLabel, buttonId, emoji;
   switch (feature) {
     case 'retro':
@@ -49,4 +49,4 @@ function getSetupSuggestion(feature) {
   return { embed, row };
 }
 
-module.exports = { getSetupSuggestion };
+// No longer using module.exports, direct export of the function.
