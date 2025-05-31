@@ -1,4 +1,4 @@
-const { EmbedBuilder, ButtonBuilder, ActionRowBuilder, ButtonStyle } = require('discord.js');
+import { EmbedBuilder, ButtonBuilder, ActionRowBuilder, ButtonStyle } from 'discord.js';
 
 class Onboarding {
   constructor(client, agentChannel) {
@@ -78,4 +78,4 @@ class Onboarding {
   // Optionally, add more step-by-step onboarding flows here
 }
 
-module.exports = Onboarding;
+export default Onboarding;

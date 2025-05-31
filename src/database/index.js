@@ -5,12 +5,14 @@ import { logger } from '../utils/logger.js';
 import config from '../config.js';
 
 // Import managers
-import AgentManager from './agentManager.js'; // Added
+import AgentManager from './agentManager.js';
 import CategoryManager from './categoryManager.js';
 import GuildManager from './guildManager.js';
 import ReactionManager from './reactionManager.js';
 import ReminderManager from './reminderManager.js';
-import ReminderManagerExtended from './reminderManagerExtended.js'; // Added
+import ReminderManagerExtended from './reminderManagerExtended.js';
+import RetroManager from '../features/retroManager.js'; // Added
+import StandupManager from '../features/standupManager.js'; // Added
 
 // Import services
 import GameService from '../services/gameService.js';
@@ -19,10 +21,9 @@ import GameService from '../services/gameService.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Promisify database methods for the raw sqlite3 instance
 const promisifyDb = (sqliteDb) => ({
   run: (sql, params = []) => new Promise((resolve, reject) => {
-    sqliteDb.run(sql, params, function(err) { // Use function() for this.lastID/changes
+    sqliteDb.run(sql, params, function(err) {
       if (err) reject(err);
       else resolve(this);
     });
@@ -39,16 +40,9 @@ const promisifyDb = (sqliteDb) => ({
       else resolve(rows || []);
     });
   }),
-  // each is not easily promisified to return all rows, usually used for streaming.
-  // The existing eachAsync in the original file was a custom promisification.
-  // For simplicity, if each is needed, it can be wrapped where used or a different approach taken.
 });
 
-/**
- * Initialize database and managers
- * @returns {Promise<Object>} Database and manager instances
- */
-export async function initializeDatabase() {
+export async function initializeDatabase(client) { // Added client parameter if Retro/Standup managers need it
   const fs = await import('fs/promises');
   try {
     await fs.mkdir(config.DATA_DIR, { recursive: true });
@@ -64,33 +58,28 @@ export async function initializeDatabase() {
   logger.info(`Initializing database: ${dbPath}`);
 
   try {
-    // Open the database using sqlite3 directly
     const sqlite = new sqlite3.Database(dbPath, (err) => {
       if (err) {
         logger.error('Error opening database:', err.message);
-        throw err; // This error needs to be caught by the outer try/catch
+        throw err;
       }
       logger.info('Connected to the SQLite database');
     });
     
-    // This 'db' object is the raw sqlite3.Database instance.
-    // We will augment it with promisified methods.
     const db = sqlite;
     const promisifiedMethods = promisifyDb(db);
     db.runAsync = promisifiedMethods.run;
     db.getAsync = promisifiedMethods.get;
     db.allAsync = promisifiedMethods.all;
-    // Retaining custom eachAsync if it was used, though it's not standard.
-    // It's better to use allAsync if all rows are needed.
     db.eachAsync = function(sql, params = []) {
       return new Promise((resolve, reject) => {
         const rows = [];
-        this.each(sql, params, (err, row) => { // 'this' here refers to the sqlite.Database instance
+        this.each(sql, params, (err, row) => {
           if (err) return reject(err);
           rows.push(row);
-        }, (errOuter, count) => { // The callback for db.each has (err, count)
+        }, (errOuter, count) => {
           if (errOuter) return reject(errOuter);
-          resolve(rows); // Resolve with all rows collected
+          resolve(rows);
         });
       });
     };
@@ -98,47 +87,58 @@ export async function initializeDatabase() {
     await db.runAsync('PRAGMA journal_mode = WAL');
     await db.runAsync('PRAGMA foreign_keys = ON');
     await db.runAsync('PRAGMA busy_timeout = 5000');
-    
-    // TODO: Implement actual migration runner call here instead of skipping
+
     logger.info('Skipping migrations for now (TODO: Implement migration runner)');
-    
+
     // Initialize managers
     const agentManager = new AgentManager(db);
-    await agentManager.initializeDatabase(); // Call async initialization
+    await agentManager.initializeDatabase();
 
     const categoryManager = new CategoryManager(db);
-    // categoryManager does not have an async init method in its class structure
+    // No async init for categoryManager
 
     const guildManager = new GuildManager(db);
-    // guildManager does not have an async init method
+    // No async init for guildManager
 
     const reactionManager = new ReactionManager(db);
-    // reactionManager does not have an async init method
+    // No async init for reactionManager
 
     const reminderManager = new ReminderManager(db);
-    // reminderManager does not have an async init method
+    // No async init for reminderManager
 
     const reminderManagerExtended = new ReminderManagerExtended(db);
-    await reminderManagerExtended.setupTables(); // Call async initialization
-    
+    await reminderManagerExtended.setupTables();
+
+    const retroManager = new RetroManager(client, db); // Assuming client is needed
+    await retroManager.setupDatabase();
+    // retroManager.initialize(); // Schedules cron jobs, might not need await if it's fire-and-forget
+                               // but if it involves async ops itself, it should be awaited.
+                               // For now, assuming it can run in background.
+
+    const standupManager = new StandupManager(client, db); // Assuming client is needed
+    await standupManager.setupDatabase();
+    // standupManager.initialize(); // Same as retroManager.initialize
+
     // Initialize services
-    const gameService = new GameService(db); // Assuming GameService constructor is sync
-    
+    const gameService = new GameService(db);
+
     logger.info('Database and managers initialized successfully');
     
     return {
-      db, // The augmented db instance
+      db,
       agentManager,
       categoryManager,
       guildManager,
       reactionManager,
       reminderManager,
       reminderManagerExtended,
+      retroManager, // Added
+      standupManager, // Added
       gameService,
       runInTransaction: async (fn) => {
         await db.runAsync('BEGIN TRANSACTION');
         try {
-          const result = await fn(db); // Pass the augmented db to the transaction function
+          const result = await fn(db);
           await db.runAsync('COMMIT');
           return result;
         } catch (error) {
@@ -155,7 +155,6 @@ export async function initializeDatabase() {
   }
 }
 
-// For backward compatibility with CommonJS (though the project is ES6)
 const dbModule = {
   initializeDatabase
 };
