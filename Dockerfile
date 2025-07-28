@@ -1,6 +1,14 @@
 # Multi-stage build for optimized production image
 FROM node:18-alpine AS builder
 
+# Install build dependencies for native modules
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    sqlite \
+    sqlite-dev
+
 # Set working directory
 WORKDIR /app
 
@@ -11,8 +19,10 @@ COPY package*.json ./
 ENV NODE_ENV=production
 ENV CI=true
 
-# Install dependencies (skip prepare scripts in production)
-RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+# Install dependencies and rebuild native modules
+RUN npm ci --omit=dev && \
+    npm rebuild sqlite3 && \
+    npm cache clean --force
 
 # Copy source code
 COPY . .
@@ -24,8 +34,10 @@ RUN addgroup -g 1001 -S botbot && \
 # Production stage
 FROM node:18-alpine AS production
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# Install runtime dependencies
+RUN apk add --no-cache \
+    dumb-init \
+    sqlite
 
 # Set working directory
 WORKDIR /app
