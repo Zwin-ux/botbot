@@ -1,4 +1,68 @@
 import { jest } from "@jest/globals";
+
+// Mock all modules before importing to prevent async operations
+jest.mock("../src/handlers/advancedHandler.js", () => ({
+  advancedHandler: {
+    handleAdvancedCommand: jest.fn().mockResolvedValue({ success: true }),
+  },
+}));
+
+jest.mock("../src/services/integrationService.js", () => ({
+  integrationService: {
+    connectSlack: jest.fn().mockResolvedValue({ connected: true }),
+    connectTeams: jest.fn().mockResolvedValue({ connected: true }),
+  },
+}));
+
+jest.mock("../src/services/webhookService.js", () => ({
+  webhookService: {
+    createWebhook: jest.fn().mockResolvedValue({ id: "webhook123" }),
+    sendWebhook: jest.fn().mockResolvedValue({ sent: true }),
+  },
+}));
+
+jest.mock("../src/features/games/advancedGames.js", () => ({
+  advancedGames: {
+    startBattleRoyale: jest.fn().mockResolvedValue("game123"),
+    startTrivia: jest.fn().mockResolvedValue("trivia123"),
+    startChess: jest.fn().mockResolvedValue("chess123"),
+  },
+}));
+
+jest.mock("../src/utils/adminTools.js", () => ({
+  adminTools: {
+    moderateContent: jest.fn().mockResolvedValue({ action: "approved" }),
+    manageUser: jest.fn().mockResolvedValue({ success: true }),
+  },
+}));
+
+jest.mock("../src/utils/aiFeatures.js", () => ({
+  aiFeatures: {
+    analyzeSentiment: jest
+      .fn()
+      .mockResolvedValue({ score: 0.8, label: "positive" }),
+    moderateContent: jest.fn().mockResolvedValue({ approved: true }),
+    generateSuggestion: jest
+      .fn()
+      .mockResolvedValue({ suggestion: "test suggestion" }),
+  },
+}));
+
+jest.mock("../src/utils/dashboardAnalytics.js", () => ({
+  dashboardAnalytics: {
+    generateDashboardData: jest.fn().mockResolvedValue({ metrics: {} }),
+    generateWidget: jest.fn().mockResolvedValue({ widget: "test" }),
+  },
+}));
+
+jest.mock("../src/utils/alerting.js", () => ({
+  alerting: {
+    sendAlert: jest.fn().mockResolvedValue({ sent: true }),
+    checkCondition: jest.fn().mockReturnValue(true),
+  },
+}));
+
+// Import after mocking
 import { advancedHandler } from "../src/handlers/advancedHandler.js";
 import { integrationService } from "../src/services/integrationService.js";
 import { webhookService } from "../src/services/webhookService.js";

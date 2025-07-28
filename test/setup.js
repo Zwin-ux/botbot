@@ -17,11 +17,11 @@ global.console = {
 };
 
 // Mock Discord.js components
-jest.mock('discord.js', () => ({
+jest.mock("discord.js", () => ({
   Client: jest.fn().mockImplementation(() => ({
     login: jest.fn().mockResolvedValue(),
     on: jest.fn(),
-    user: { id: 'bot123', username: 'BotBot' },
+    user: { id: "bot123", username: "BotBot" },
   })),
   GatewayIntentBits: {
     Guilds: 1,
@@ -30,9 +30,9 @@ jest.mock('discord.js', () => ({
     GuildMessageReactions: 8,
   },
   Partials: {
-    Message: 'MESSAGE',
-    Channel: 'CHANNEL',
-    Reaction: 'REACTION',
+    Message: "MESSAGE",
+    Channel: "CHANNEL",
+    Reaction: "REACTION",
   },
   EmbedBuilder: jest.fn().mockImplementation(() => ({
     setTitle: jest.fn().mockReturnThis(),
@@ -49,13 +49,13 @@ jest.mock('discord.js', () => ({
 }));
 
 // Mock node-cron to prevent scheduler hanging
-jest.mock('node-cron', () => ({
+jest.mock("node-cron", () => ({
   schedule: jest.fn(),
   destroy: jest.fn(),
 }));
 
 // Mock SQLite3 database
-jest.mock('sqlite3', () => ({
+jest.mock("sqlite3", () => ({
   Database: jest.fn().mockImplementation(() => ({
     run: jest.fn((sql, params, callback) => {
       if (callback) callback(null);
@@ -73,19 +73,19 @@ jest.mock('sqlite3', () => ({
 }));
 
 // Mock fs operations
-jest.mock('fs', () => ({
-  ...jest.requireActual('fs'),
+jest.mock("fs", () => ({
+  ...jest.requireActual("fs"),
   existsSync: jest.fn(() => true),
   mkdirSync: jest.fn(),
   writeFileSync: jest.fn(),
-  readFileSync: jest.fn(() => '{}'),
+  readFileSync: jest.fn(() => "{}"),
 }));
 
 // Mock path operations for cross-platform compatibility
-jest.mock('path', () => ({
-  ...jest.requireActual('path'),
-  resolve: jest.fn((...args) => args.join('/')),
-  join: jest.fn((...args) => args.join('/')),
+jest.mock("path", () => ({
+  ...jest.requireActual("path"),
+  resolve: jest.fn((...args) => args.join("/")),
+  join: jest.fn((...args) => args.join("/")),
 }));
 
 // Set test timeout

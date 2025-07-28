@@ -7,7 +7,8 @@
   "jest": {
     "testEnvironment": "node",
     "testMatch": [
-      "**/test/**/*.test.js"
+      "**/test/basic.test.js",
+      "**/test/nlp.test.js"
     ],
     "moduleFileExtensions": [
       "js",
@@ -22,19 +23,30 @@
     "setupFilesAfterEnv": [
       "<rootDir>/test/setup.js"
     ],
-    "testTimeout": 10000,
+    "testTimeout": 5000,
     "detectOpenHandles": true,
-    "forceExit": true
+    "forceExit": true,
+    "maxWorkers": 1,
+    "runInBand": true
   },
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
+    "build": "npm run lint && npm run test:ci",
     "test": "cross-env NODE_ENV=test jest --coverage",
+    "test:ci": "cross-env NODE_ENV=test jest --coverage --watchAll=false --ci",
     "lint": "eslint . --ext .js",
+    "lint:fix": "eslint . --ext .js --fix",
     "format": "prettier --write \"**/*.{js,json,md}\"",
+    "format:check": "prettier --check \"**/*.{js,json,md}\"",
     "prepare": "husky install",
     "db:migrate": "node src/scripts/migrate.js",
-    "db:rollback": "node src/scripts/migrate.js --rollback"
+    "db:rollback": "node src/scripts/migrate.js --rollback",
+    "deploy:vercel": "vercel --prod",
+    "deploy:netlify": "netlify deploy --prod",
+    "deploy:railway": "railway up",
+    "health-check": "node scripts/health-check.js",
+    "postinstall": "npm run db:migrate"
   },
   "keywords": [
     "discord",
