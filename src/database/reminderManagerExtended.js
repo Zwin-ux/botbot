@@ -48,31 +48,39 @@ class ReminderManagerExtended {
    * @param {number} priority - Priority level (0-3)
    * @returns {Promise<Object>} - Created reminder
    */
-  async createRecurringReminder(userId, userTag, content, cronExpression, channelId, categoryId = null, priority = 0) {
+  async createRecurringReminder(
+    userId,
+    userTag,
+    content,
+    cronExpression,
+    channelId,
+    categoryId = null,
+    priority = 0,
+  ) {
     return new Promise((resolve, reject) => {
       // Calculate the next run time based on the cron expression
       const now = Math.floor(Date.now() / 1000);
       const nextRunTime = this.calculateNextRunTime(cronExpression);
-      
+
       // First create a basic reminder
       this.db.run(
         `INSERT INTO reminders 
          (userId, userTag, content, dueTime, channelId, categoryId, priority, isRecurring, createdAt)
          VALUES (?, ?, ?, ?, ?, ?, ?, 1, cast(strftime('%s', 'now') as int))`,
         [
-          userId, 
-          userTag, 
-          content, 
-          nextRunTime, 
+          userId,
+          userTag,
+          content,
+          nextRunTime,
           channelId,
           categoryId,
-          priority
+          priority,
         ],
         (err) => {
           if (err) return reject(err);
-          
+
           const reminderId = this.db.lastID;
-          
+
           // Then create the recurring info
           this.db.run(
             `INSERT INTO recurring_reminders 
@@ -82,11 +90,11 @@ class ReminderManagerExtended {
               reminderId,
               this.getCronFrequency(cronExpression),
               cronExpression,
-              nextRunTime
+              nextRunTime,
             ],
-            function(err) {
+            function (err) {
               if (err) return reject(err);
-              
+
               resolve({
                 id: reminderId,
                 userId,
@@ -97,11 +105,11 @@ class ReminderManagerExtended {
                 categoryId,
                 priority,
                 isRecurring: true,
-                cronExpression
+                cronExpression,
               });
-            }
+            },
           );
-        }
+        },
       );
     });
   }
@@ -118,7 +126,16 @@ class ReminderManagerExtended {
    * @param {string} targetType - Type of target ('channel' or 'team')
    * @returns {Promise<Object>} - Created reminder
    */
-  async createGroupReminder(userId, userTag, content, dueTime, channelId, categoryId = null, priority = 0, targetType = 'channel') {
+  async createGroupReminder(
+    userId,
+    userTag,
+    content,
+    dueTime,
+    channelId,
+    categoryId = null,
+    priority = 0,
+    targetType = "channel",
+  ) {
     return new Promise((resolve, reject) => {
       // First create a basic reminder
       this.db.run(
@@ -126,32 +143,28 @@ class ReminderManagerExtended {
          (userId, userTag, content, dueTime, channelId, categoryId, priority, isGroupReminder, createdAt)
          VALUES (?, ?, ?, ?, ?, ?, ?, 1, cast(strftime('%s', 'now') as int))`,
         [
-          userId, 
-          userTag, 
-          content, 
-          dueTime ? Math.floor(dueTime.getTime() / 1000) : null, 
+          userId,
+          userTag,
+          content,
+          dueTime ? Math.floor(dueTime.getTime() / 1000) : null,
           channelId,
           categoryId,
-          priority
+          priority,
         ],
         (err) => {
           if (err) return reject(err);
-          
+
           const reminderId = this.db.lastID;
-          
+
           // Then create the group info
           this.db.run(
             `INSERT INTO group_reminders 
              (reminderId, targetType, targetId)
              VALUES (?, ?, ?)`,
-            [
-              reminderId,
-              targetType,
-              channelId
-            ],
-            function(err) {
+            [reminderId, targetType, channelId],
+            function (err) {
               if (err) return reject(err);
-              
+
               resolve({
                 id: reminderId,
                 userId,
@@ -162,18 +175,18 @@ class ReminderManagerExtended {
                 categoryId,
                 priority,
                 isGroupReminder: true,
-                targetType
+                targetType,
               });
-            }
+            },
           );
-        }
+        },
       );
     });
   }
 
   /**
    * Create a reminder for another user
-   * @param {string} creatorId - Creator user ID 
+   * @param {string} creatorId - Creator user ID
    * @param {string} creatorTag - Creator tag (display name)
    * @param {string} targetUserId - Target user ID
    * @param {string} content - Reminder content
@@ -183,7 +196,16 @@ class ReminderManagerExtended {
    * @param {number} priority - Priority level (0-3)
    * @returns {Promise<Object>} - Created reminder
    */
-  async createUserReminder(creatorId, creatorTag, targetUserId, content, dueTime, channelId, categoryId = null, priority = 0) {
+  async createUserReminder(
+    creatorId,
+    creatorTag,
+    targetUserId,
+    content,
+    dueTime,
+    channelId,
+    categoryId = null,
+    priority = 0,
+  ) {
     return new Promise((resolve, reject) => {
       // Create a reminder with metadata indicating it was created for another user
       this.db.run(
@@ -192,17 +214,17 @@ class ReminderManagerExtended {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, cast(strftime('%s', 'now') as int))`,
         [
           targetUserId, // The reminder is for the target user
-          'User', // We don't know their tag yet
-          content, 
-          dueTime ? Math.floor(dueTime.getTime() / 1000) : null, 
+          "User", // We don't know their tag yet
+          content,
+          dueTime ? Math.floor(dueTime.getTime() / 1000) : null,
           channelId,
           categoryId,
           priority,
-          creatorId // Tracked who created it
+          creatorId, // Tracked who created it
         ],
-        function(err) {
+        function (err) {
           if (err) return reject(err);
-          
+
           resolve({
             id: this.lastID,
             userId: targetUserId,
@@ -211,9 +233,9 @@ class ReminderManagerExtended {
             channelId,
             categoryId,
             priority,
-            createdBy: creatorId
+            createdBy: creatorId,
           });
-        }
+        },
       );
     });
   }
@@ -227,25 +249,25 @@ class ReminderManagerExtended {
   calculateNextRunTime(cronExpression) {
     // Simple implementation - in real code, use a cron parser library
     const now = new Date();
-    const parts = cronExpression.split(' ');
-    
+    const parts = cronExpression.split(" ");
+
     // Default to tomorrow at the specified time
     const nextRun = new Date(now);
     nextRun.setDate(now.getDate() + 1);
-    
+
     // Try to parse hour and minute from cron
     const minute = parseInt(parts[0]);
     const hour = parseInt(parts[1]);
-    
+
     if (!isNaN(minute) && !isNaN(hour)) {
       nextRun.setHours(hour, minute, 0, 0);
-      
+
       // If this time is in the past, add a day
       if (nextRun <= now) {
         nextRun.setDate(nextRun.getDate() + 1);
       }
     }
-    
+
     return Math.floor(nextRun.getTime() / 1000);
   }
 
@@ -255,25 +277,25 @@ class ReminderManagerExtended {
    * @returns {string} - Frequency description
    */
   getCronFrequency(cronExpression) {
-    const parts = cronExpression.split(' ');
-    
+    const parts = cronExpression.split(" ");
+
     // Check for daily (every day)
-    if (parts[2] === '*' && parts[3] === '*' && parts[4] === '*') {
-      return 'daily';
+    if (parts[2] === "*" && parts[3] === "*" && parts[4] === "*") {
+      return "daily";
     }
-    
+
     // Check for weekly (specific day of week)
-    if (parts[2] === '*' && parts[3] === '*' && parts[4] !== '*') {
-      return 'weekly';
+    if (parts[2] === "*" && parts[3] === "*" && parts[4] !== "*") {
+      return "weekly";
     }
-    
+
     // Check for weekdays
-    if (parts[2] === '*' && parts[3] === '*' && parts[4] === '1-5') {
-      return 'weekday';
+    if (parts[2] === "*" && parts[3] === "*" && parts[4] === "1-5") {
+      return "weekday";
     }
-    
+
     // Default
-    return 'custom';
+    return "custom";
   }
 
   /**
@@ -283,7 +305,7 @@ class ReminderManagerExtended {
    */
   async processRecurringReminders() {
     const now = Math.floor(Date.now() / 1000);
-    
+
     return new Promise((resolve, reject) => {
       // Get recurring reminders that are due
       this.db.all(
@@ -294,29 +316,34 @@ class ReminderManagerExtended {
         [now],
         async (err, reminders) => {
           if (err) return reject(err);
-          
+
           const processed = [];
-          
+
           for (const reminder of reminders) {
             try {
               // Calculate next run time
-              const nextRunTime = this.calculateNextRunTime(reminder.cronExpression);
-              
+              const nextRunTime = this.calculateNextRunTime(
+                reminder.cronExpression,
+              );
+
               // Update the reminder with the new due time
               await this.updateRecurringReminder(reminder.id, nextRunTime);
-              
+
               // Add to processed list
               processed.push({
                 ...reminder,
-                nextDueTime: nextRunTime
+                nextDueTime: nextRunTime,
               });
             } catch (err) {
-              console.error(`Error processing recurring reminder ${reminder.id}:`, err);
+              console.error(
+                `Error processing recurring reminder ${reminder.id}:`,
+                err,
+              );
             }
           }
-          
+
           resolve(processed);
-        }
+        },
       );
     });
   }
@@ -334,19 +361,19 @@ class ReminderManagerExtended {
         [nextRunTime, reminderId],
         (err) => {
           if (err) return reject(err);
-          
+
           this.db.run(
             `UPDATE recurring_reminders 
              SET lastRunTime = cast(strftime('%s', 'now') as int), 
                  nextRunTime = ?
              WHERE reminderId = ?`,
             [nextRunTime, reminderId],
-            function(err) {
+            function (err) {
               if (err) return reject(err);
               resolve(this.changes > 0);
-            }
+            },
           );
-        }
+        },
       );
     });
   }
@@ -368,7 +395,7 @@ class ReminderManagerExtended {
         (err, rows) => {
           if (err) return reject(err);
           resolve(rows);
-        }
+        },
       );
     });
   }

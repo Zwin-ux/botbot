@@ -22,7 +22,7 @@ class BaseService {
         });
       });
     } catch (error) {
-      this.logger.error('Database query failed:', { query, error });
+      this.logger.error("Database query failed:", { query, error });
       throw error;
     }
   }
@@ -36,13 +36,13 @@ class BaseService {
   async execute(query, params = []) {
     try {
       return await new Promise((resolve, reject) => {
-        this.db.run(query, params, function(err) {
+        this.db.run(query, params, function (err) {
           if (err) return reject(err);
           resolve({ changes: this.changes, lastID: this.lastID });
         });
       });
     } catch (error) {
-      this.logger.error('Database execute failed:', { query, error });
+      this.logger.error("Database execute failed:", { query, error });
       throw error;
     }
   }
@@ -52,7 +52,7 @@ class BaseService {
    * @returns {Promise<void>}
    */
   async beginTransaction() {
-    await this.execute('BEGIN TRANSACTION');
+    await this.execute("BEGIN TRANSACTION");
   }
 
   /**
@@ -60,7 +60,7 @@ class BaseService {
    * @returns {Promise<void>}
    */
   async commit() {
-    await this.execute('COMMIT');
+    await this.execute("COMMIT");
   }
 
   /**
@@ -68,7 +68,7 @@ class BaseService {
    * @returns {Promise<void>}
    */
   async rollback() {
-    await this.execute('ROLLBACK');
+    await this.execute("ROLLBACK");
   }
 
   /**

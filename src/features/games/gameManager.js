@@ -1,6 +1,6 @@
-const EmojiRace = require('./emojiRace');
-const StoryBuilder = require('./storyBuilder');
-const WhoSaidIt = require('./whoSaidIt');
+const EmojiRace = require("./emojiRace");
+const StoryBuilder = require("./storyBuilder");
+const WhoSaidIt = require("./whoSaidIt");
 
 class GameManager {
   constructor(client, db) {
@@ -8,26 +8,26 @@ class GameManager {
     this.db = db;
     this.activeGames = new Map(); // channelId -> game
     this.gameTypes = {
-      'emoji-race': EmojiRace,
-      'story-builder': StoryBuilder,
-      'who-said-it': WhoSaidIt
+      "emoji-race": EmojiRace,
+      "story-builder": StoryBuilder,
+      "who-said-it": WhoSaidIt,
     };
   }
 
   async startGame(channel, gameType, options = {}) {
     if (this.activeGames.has(channel.id)) {
-      return { error: 'There is already an active game in this channel.' };
+      return { error: "There is already an active game in this channel." };
     }
 
     const GameClass = this.gameTypes[gameType];
     if (!GameClass) {
-      return { error: 'Unknown game type.' };
+      return { error: "Unknown game type." };
     }
 
     const game = new GameClass(this.client, channel, this.db, options);
     this.activeGames.set(channel.id, game);
 
-    game.on('end', () => {
+    game.on("end", () => {
       this.activeGames.delete(channel.id);
     });
 
@@ -36,7 +36,7 @@ class GameManager {
       return { success: true };
     } catch (error) {
       this.activeGames.delete(channel.id);
-      return { error: 'Failed to start game: ' + error.message };
+      return { error: "Failed to start game: " + error.message };
     }
   }
 

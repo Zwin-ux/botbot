@@ -1,7 +1,7 @@
 // InputManager: Normalizes and routes all user input for multi-language support
-const LanguageDetector = require('../nlu/LanguageDetector');
-const IntentRecognizer = require('../utils/intentRecognizer');
-const EnhancedParser = require('../enhancedParser');
+const LanguageDetector = require("../nlu/LanguageDetector");
+const IntentRecognizer = require("../utils/intentRecognizer");
+const EnhancedParser = require("../enhancedParser");
 
 const InputManager = {
   async handleInput({ text, user, channel }) {
@@ -14,7 +14,7 @@ const InputManager = {
     const parsed = parser.parse(text, language);
     // Step 4: Return normalized data
     return { text, language, user, channel, intent, parsed };
-  }
+  },
 };
 
 module.exports = InputManager;

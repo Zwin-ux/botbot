@@ -1,5 +1,5 @@
-import BaseService from './baseService.js';
-import { v4 as uuidv4 } from 'uuid';
+import BaseService from "./baseService.js";
+import { v4 as uuidv4 } from "uuid";
 
 class GameService extends BaseService {
   constructor(db, logger) {
@@ -14,13 +14,13 @@ class GameService extends BaseService {
   async createGame(gameData) {
     const gameId = uuidv4();
     const { channelId, gameType, createdBy, settings = {} } = gameData;
-    
+
     await this.execute(
       `INSERT INTO games (id, channel_id, game_type, created_by, settings, status, created_at)
        VALUES (?, ?, ?, ?, ?, 'pending', datetime('now'))`,
-      [gameId, channelId, gameType, createdBy, JSON.stringify(settings)]
+      [gameId, channelId, gameType, createdBy, JSON.stringify(settings)],
     );
-    
+
     return gameId;
   }
 
@@ -34,13 +34,13 @@ class GameService extends BaseService {
       `SELECT * FROM games 
        WHERE channel_id = ? AND status = 'active'
        ORDER BY created_at DESC LIMIT 1`,
-      [channelId]
+      [channelId],
     );
-    
+
     if (game) {
       game.settings = JSON.parse(game.settings);
     }
-    
+
     return game || null;
   }
 
@@ -52,25 +52,25 @@ class GameService extends BaseService {
    * @returns {Promise<void>}
    */
   async updateGameStatus(gameId, status, data = {}) {
-    const updates = ['status = ?'];
+    const updates = ["status = ?"];
     const params = [status];
-    
+
     if (data.winnerId) {
-      updates.push('winner_id = ?');
+      updates.push("winner_id = ?");
       params.push(data.winnerId);
     }
-    
+
     if (data.settings) {
-      updates.push('settings = ?');
+      updates.push("settings = ?");
       params.push(JSON.stringify(data.settings));
     }
-    
-    updates.push('updated_at = datetime(\'now\')');
-    
-    await this.execute(
-      `UPDATE games SET ${updates.join(', ')} WHERE id = ?`,
-      [...params, gameId]
-    );
+
+    updates.push("updated_at = datetime('now')");
+
+    await this.execute(`UPDATE games SET ${updates.join(", ")} WHERE id = ?`, [
+      ...params,
+      gameId,
+    ]);
   }
 
   /**
@@ -87,7 +87,7 @@ class GameService extends BaseService {
        ON CONFLICT(game_id, user_id) DO UPDATE SET
          data = excluded.data,
          updated_at = datetime('now')`,
-      [gameId, userId, JSON.stringify(data)]
+      [gameId, userId, JSON.stringify(data)],
     );
   }
 
@@ -99,12 +99,12 @@ class GameService extends BaseService {
   async getPlayers(gameId) {
     const players = await this.query(
       `SELECT user_id, data FROM game_players WHERE game_id = ?`,
-      [gameId]
+      [gameId],
     );
-    
-    return players.map(p => ({
+
+    return players.map((p) => ({
       userId: p.user_id,
-      ...JSON.parse(p.data)
+      ...JSON.parse(p.data),
     }));
   }
 
@@ -121,7 +121,7 @@ class GameService extends BaseService {
          completed_at = datetime('now'),
          status = 'completed'
        WHERE id = ?`,
-      [JSON.stringify(result), gameId]
+      [JSON.stringify(result), gameId],
     );
   }
 }

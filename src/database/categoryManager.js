@@ -12,7 +12,7 @@ class CategoryManager {
    */
   async getAllCategories() {
     return new Promise((resolve, reject) => {
-      this.db.all('SELECT * FROM categories ORDER BY name ASC', (err, rows) => {
+      this.db.all("SELECT * FROM categories ORDER BY name ASC", (err, rows) => {
         if (err) return reject(err);
         resolve(rows);
       });
@@ -26,7 +26,7 @@ class CategoryManager {
    */
   async getCategoryById(id) {
     return new Promise((resolve, reject) => {
-      this.db.get('SELECT * FROM categories WHERE id = ?', [id], (err, row) => {
+      this.db.get("SELECT * FROM categories WHERE id = ?", [id], (err, row) => {
         if (err) return reject(err);
         resolve(row);
       });
@@ -40,10 +40,14 @@ class CategoryManager {
    */
   async getCategoryByEmoji(emoji) {
     return new Promise((resolve, reject) => {
-      this.db.get('SELECT * FROM categories WHERE emoji = ?', [emoji], (err, row) => {
-        if (err) return reject(err);
-        resolve(row);
-      });
+      this.db.get(
+        "SELECT * FROM categories WHERE emoji = ?",
+        [emoji],
+        (err, row) => {
+          if (err) return reject(err);
+          resolve(row);
+        },
+      );
     });
   }
 
@@ -54,15 +58,15 @@ class CategoryManager {
    * @param {string} description - Category description
    * @returns {Promise<number>} New category ID
    */
-  async createCategory(name, emoji, description = '') {
+  async createCategory(name, emoji, description = "") {
     return new Promise((resolve, reject) => {
       this.db.run(
-        'INSERT INTO categories (name, emoji, description) VALUES (?, ?, ?)',
+        "INSERT INTO categories (name, emoji, description) VALUES (?, ?, ?)",
         [name, emoji, description],
-        function(err) {
+        function (err) {
           if (err) return reject(err);
           resolve(this.lastID);
-        }
+        },
       );
     });
   }
@@ -76,12 +80,12 @@ class CategoryManager {
   async subscribeUserToCategory(userId, categoryId) {
     return new Promise((resolve, reject) => {
       this.db.run(
-        'INSERT OR REPLACE INTO subscriptions (userId, categoryId) VALUES (?, ?)',
+        "INSERT OR REPLACE INTO subscriptions (userId, categoryId) VALUES (?, ?)",
         [userId, categoryId],
-        function(err) {
+        function (err) {
           if (err) return reject(err);
           resolve(true);
-        }
+        },
       );
     });
   }
@@ -95,12 +99,12 @@ class CategoryManager {
   async unsubscribeUserFromCategory(userId, categoryId) {
     return new Promise((resolve, reject) => {
       this.db.run(
-        'DELETE FROM subscriptions WHERE userId = ? AND categoryId = ?',
+        "DELETE FROM subscriptions WHERE userId = ? AND categoryId = ?",
         [userId, categoryId],
-        function(err) {
+        function (err) {
           if (err) return reject(err);
           resolve(this.changes > 0);
-        }
+        },
       );
     });
   }
@@ -121,7 +125,7 @@ class CategoryManager {
         (err, rows) => {
           if (err) return reject(err);
           resolve(rows);
-        }
+        },
       );
     });
   }
@@ -134,12 +138,12 @@ class CategoryManager {
   async getCategorySubscribers(categoryId) {
     return new Promise((resolve, reject) => {
       this.db.all(
-        'SELECT userId FROM subscriptions WHERE categoryId = ?',
+        "SELECT userId FROM subscriptions WHERE categoryId = ?",
         [categoryId],
         (err, rows) => {
           if (err) return reject(err);
-          resolve(rows.map(row => row.userId));
-        }
+          resolve(rows.map((row) => row.userId));
+        },
       );
     });
   }

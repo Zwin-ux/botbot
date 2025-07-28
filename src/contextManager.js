@@ -1,4 +1,4 @@
-import sqlite3 from 'sqlite3';
+import sqlite3 from "sqlite3";
 
 class ContextManager {
   constructor(db) {
@@ -19,8 +19,8 @@ class ContextManager {
 
   async setContext(userId, contextType, contextData = {}, ttlMinutes = 5) {
     return new Promise((resolve, reject) => {
-      const expiresAt = Math.floor(Date.now() / 1000) + (ttlMinutes * 60);
-      
+      const expiresAt = Math.floor(Date.now() / 1000) + ttlMinutes * 60;
+
       this.db.run(
         `INSERT OR REPLACE INTO conversation_context (userId, contextType, contextData, expiresAt)
          VALUES (?, ?, ?, ?)`,
@@ -28,7 +28,7 @@ class ContextManager {
         (err) => {
           if (err) return reject(err);
           resolve();
-        }
+        },
       );
     });
   }
@@ -37,29 +37,29 @@ class ContextManager {
     return new Promise((resolve, reject) => {
       // First, clear any expired contexts
       this.db.run(
-        'DELETE FROM conversation_context WHERE expiresAt < ?',
+        "DELETE FROM conversation_context WHERE expiresAt < ?",
         [Math.floor(Date.now() / 1000)],
         () => {
           this.db.get(
-            'SELECT * FROM conversation_context WHERE userId = ?',
+            "SELECT * FROM conversation_context WHERE userId = ?",
             [userId],
             (err, row) => {
               if (err) return reject(err);
               if (!row) return resolve(null);
-              
+
               try {
                 const contextData = JSON.parse(row.contextData);
                 resolve({
                   type: row.contextType,
                   ...contextData,
-                  _expiresAt: row.expiresAt
+                  _expiresAt: row.expiresAt,
                 });
               } catch (e) {
                 reject(e);
               }
-            }
+            },
           );
-        }
+        },
       );
     });
   }
@@ -67,12 +67,12 @@ class ContextManager {
   async clearContext(userId) {
     return new Promise((resolve, reject) => {
       this.db.run(
-        'DELETE FROM conversation_context WHERE userId = ?',
+        "DELETE FROM conversation_context WHERE userId = ?",
         [userId],
         (err) => {
           if (err) reject(err);
           else resolve();
-        }
+        },
       );
     });
   }

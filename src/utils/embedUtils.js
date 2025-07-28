@@ -4,25 +4,25 @@
 
 // Color palette for different game states and urgencies
 const COLORS = {
-  INFO: 0x3498db,      // Blue
-  SUCCESS: 0x2ecc71,   // Green
-  WARNING: 0xf39c12,   // Orange
-  DANGER: 0xe74c3c,    // Red
-  NEUTRAL: 0x95a5a6    // Gray
+  INFO: 0x3498db, // Blue
+  SUCCESS: 0x2ecc71, // Green
+  WARNING: 0xf39c12, // Orange
+  DANGER: 0xe74c3c, // Red
+  NEUTRAL: 0x95a5a6, // Gray
 };
 
 // Emoji mapping for different game states
 const EMOJIS = {
-  WAITING: '⏳',
-  STARTING: '🚀',
-  IN_PROGRESS: '🎮',
-  ENDED: '🏁',
-  ERROR: '❌',
-  JOIN: '✋',
-  WINNER: '🏆',
-  COUNTDOWN: '⏱️',
-  PLAYERS: '👥',
-  ROUND: '🔢'
+  WAITING: "⏳",
+  STARTING: "🚀",
+  IN_PROGRESS: "🎮",
+  ENDED: "🏁",
+  ERROR: "❌",
+  JOIN: "✋",
+  WINNER: "🏆",
+  COUNTDOWN: "⏱️",
+  PLAYERS: "👥",
+  ROUND: "🔢",
 };
 
 /**
@@ -36,20 +36,20 @@ const EMOJIS = {
  * @param {boolean} [options.timestamp] - Whether to add a timestamp
  * @returns {Object} - Discord embed object
  */
-function createEmbed({ 
-  title, 
-  description, 
-  color = COLORS.INFO, 
+function createEmbed({
+  title,
+  description,
+  color = COLORS.INFO,
   emoji,
   fields = [],
-  timestamp = true
+  timestamp = true,
 }) {
   const embed = {
     color,
     title: emoji ? `${emoji} ${title}` : title,
     description,
     fields,
-    timestamp: timestamp ? new Date() : undefined
+    timestamp: timestamp ? new Date() : undefined,
   };
 
   return embed;
@@ -63,36 +63,36 @@ function createEmbed({
  */
 function createGameEmbed(gameType, options) {
   const gameConfig = {
-    'emoji-race': {
+    "emoji-race": {
       color: 0x9b59b6, // Purple
-      emoji: '🏁',
-      title: 'Emoji Race'
+      emoji: "🏁",
+      title: "Emoji Race",
     },
-    'story-builder': {
+    "story-builder": {
       color: 0x3498db, // Blue
-      emoji: '📖',
-      title: 'Story Builder'
+      emoji: "📖",
+      title: "Story Builder",
     },
-    'who-said-it': {
+    "who-said-it": {
       color: 0xe91e63, // Pink
-      emoji: '🗣️',
-      title: 'Who Said It?'
-    }
+      emoji: "🗣️",
+      title: "Who Said It?",
+    },
   };
 
   const config = gameConfig[gameType] || {
     color: COLORS.INFO,
-    emoji: '🎮',
-    title: 'Game'
+    emoji: "🎮",
+    title: "Game",
   };
 
   return createEmbed({
     title: options.title || config.title,
-    description: options.description || '',
+    description: options.description || "",
     color: options.color || config.color,
     emoji: options.emoji || config.emoji,
     fields: options.fields || [],
-    timestamp: options.timestamp !== false
+    timestamp: options.timestamp !== false,
   });
 }
 
@@ -104,11 +104,11 @@ function createGameEmbed(gameType, options) {
  */
 function createCountdownEmbed(seconds, message) {
   return createEmbed({
-    title: 'Countdown',
-    description: `${EMOJIS.COUNTDOWN} ${message}\n\n${'⏳ '.repeat(Math.min(5, Math.ceil(seconds / 2)))}`,
+    title: "Countdown",
+    description: `${EMOJIS.COUNTDOWN} ${message}\n\n${"⏳ ".repeat(Math.min(5, Math.ceil(seconds / 2)))}`,
     color: COLORS.WARNING,
     emoji: EMOJIS.COUNTDOWN,
-    timestamp: false
+    timestamp: false,
   });
 }
 
@@ -118,16 +118,17 @@ function createCountdownEmbed(seconds, message) {
  * @param {string} title - Title for the player list
  * @returns {Object} - Player list embed
  */
-function createPlayerListEmbed(players, title = 'Players') {
-  const playerList = players.length > 0 
-    ? players.map((p, i) => `${i + 1}. <@${p.id}>`).join('\n')
-    : 'No players yet. Type `join` to join!';
+function createPlayerListEmbed(players, title = "Players") {
+  const playerList =
+    players.length > 0
+      ? players.map((p, i) => `${i + 1}. <@${p.id}>`).join("\n")
+      : "No players yet. Type `join` to join!";
 
   return createEmbed({
     title,
     description: `\n${playerList}\n\n**${players.length} players**`,
     emoji: EMOJIS.PLAYERS,
-    color: COLORS.INFO
+    color: COLORS.INFO,
   });
 }
 
@@ -137,5 +138,5 @@ export {
   createEmbed,
   createGameEmbed,
   createCountdownEmbed,
-  createPlayerListEmbed
+  createPlayerListEmbed,
 };

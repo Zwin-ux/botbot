@@ -16,21 +16,28 @@ class ReminderManager {
    * @param {number|null} categoryId - Category ID (or null for default)
    * @returns {Promise<Object>} - Created reminder
    */
-  async createReminder(userId, userTag, content, dueTime, channelId, categoryId = null) {
+  async createReminder(
+    userId,
+    userTag,
+    content,
+    dueTime,
+    channelId,
+    categoryId = null,
+  ) {
     return new Promise((resolve, reject) => {
       this.db.run(
         `INSERT INTO reminders 
          (userId, userTag, content, dueTime, channelId, categoryId, createdAt)
          VALUES (?, ?, ?, ?, ?, ?, cast(strftime('%s', 'now') as int))`,
         [
-          userId, 
-          userTag, 
-          content, 
-          dueTime ? Math.floor(dueTime.getTime() / 1000) : null, 
+          userId,
+          userTag,
+          content,
+          dueTime ? Math.floor(dueTime.getTime() / 1000) : null,
           channelId,
-          categoryId
+          categoryId,
         ],
-        function(err) {
+        function (err) {
           if (err) return reject(err);
           resolve({
             id: this.lastID,
@@ -40,9 +47,9 @@ class ReminderManager {
             dueTime: dueTime ? Math.floor(dueTime.getTime() / 1000) : null,
             channelId,
             categoryId,
-            priority: 0
+            priority: 0,
           });
-        }
+        },
       );
     });
   }
@@ -63,7 +70,7 @@ class ReminderManager {
         (err, row) => {
           if (err) return reject(err);
           resolve(row || null);
-        }
+        },
       );
     });
   }
@@ -77,12 +84,12 @@ class ReminderManager {
   async updateReminderCategory(reminderId, categoryId) {
     return new Promise((resolve, reject) => {
       this.db.run(
-        'UPDATE reminders SET categoryId = ? WHERE id = ?',
+        "UPDATE reminders SET categoryId = ? WHERE id = ?",
         [categoryId, reminderId],
-        function(err) {
+        function (err) {
           if (err) return reject(err);
           resolve(this.changes > 0);
-        }
+        },
       );
     });
   }
@@ -99,10 +106,10 @@ class ReminderManager {
    */
   async getUserReminders(userId, options = {}) {
     const {
-      status = 'pending',
-      timeFilter = 'all',
+      status = "pending",
+      timeFilter = "all",
       categoryId = null,
-      sortByPriority = false
+      sortByPriority = false,
     } = options;
 
     return new Promise((resolve, reject) => {
@@ -111,41 +118,51 @@ class ReminderManager {
         FROM reminders r
         LEFT JOIN categories c ON r.categoryId = c.id
         WHERE r.userId = ? AND r.status = ?`;
-      
+
       const params = [userId, status];
-      
+
       // Apply time filter
-      if (timeFilter === 'today') {
+      if (timeFilter === "today") {
         const today = new Date();
-        const startOfDay = Math.floor(new Date(today.setHours(0, 0, 0, 0)).getTime() / 1000);
-        const endOfDay = Math.floor(new Date(today.setHours(23, 59, 59, 999)).getTime() / 1000);
-        query += ' AND (r.dueTime IS NULL OR (r.dueTime >= ? AND r.dueTime <= ?))';
+        const startOfDay = Math.floor(
+          new Date(today.setHours(0, 0, 0, 0)).getTime() / 1000,
+        );
+        const endOfDay = Math.floor(
+          new Date(today.setHours(23, 59, 59, 999)).getTime() / 1000,
+        );
+        query +=
+          " AND (r.dueTime IS NULL OR (r.dueTime >= ? AND r.dueTime <= ?))";
         params.push(startOfDay, endOfDay);
-      } else if (timeFilter === 'week') {
+      } else if (timeFilter === "week") {
         const today = new Date();
-        const startOfDay = Math.floor(new Date(today.setHours(0, 0, 0, 0)).getTime() / 1000);
-        const endOfWeek = Math.floor(new Date(today.setDate(today.getDate() + 7)).getTime() / 1000);
-        query += ' AND (r.dueTime IS NULL OR (r.dueTime >= ? AND r.dueTime <= ?))';
+        const startOfDay = Math.floor(
+          new Date(today.setHours(0, 0, 0, 0)).getTime() / 1000,
+        );
+        const endOfWeek = Math.floor(
+          new Date(today.setDate(today.getDate() + 7)).getTime() / 1000,
+        );
+        query +=
+          " AND (r.dueTime IS NULL OR (r.dueTime >= ? AND r.dueTime <= ?))";
         params.push(startOfDay, endOfWeek);
-      } else if (timeFilter === 'overdue') {
+      } else if (timeFilter === "overdue") {
         const now = Math.floor(Date.now() / 1000);
-        query += ' AND r.dueTime < ?';
+        query += " AND r.dueTime < ?";
         params.push(now);
       }
-      
+
       // Filter by category
       if (categoryId) {
-        query += ' AND r.categoryId = ?';
+        query += " AND r.categoryId = ?";
         params.push(categoryId);
       }
-      
+
       // Order by priority or time
       if (sortByPriority) {
-        query += ' ORDER BY r.priority DESC, r.dueTime ASC NULLS LAST';
+        query += " ORDER BY r.priority DESC, r.dueTime ASC NULLS LAST";
       } else {
-        query += ' ORDER BY r.dueTime ASC NULLS LAST';
+        query += " ORDER BY r.dueTime ASC NULLS LAST";
       }
-      
+
       this.db.all(query, params, (err, rows) => {
         if (err) return reject(err);
         resolve(rows);
@@ -162,13 +179,14 @@ class ReminderManager {
   async markReminderDone(reminderId, userId) {
     return new Promise((resolve, reject) => {
       this.db.run(
-        'UPDATE reminders SET status = ? WHERE id = ? AND userId = ?',
-        ['done', reminderId, userId],
-        function(err) {
+        "UPDATE reminders SET status = ? WHERE id = ? AND userId = ?",
+        ["done", reminderId, userId],
+        function (err) {
           if (err) return reject(err);
-          if (this.changes === 0) return reject(new Error('Reminder not found or not owned by user'));
+          if (this.changes === 0)
+            return reject(new Error("Reminder not found or not owned by user"));
           resolve(true);
-        }
+        },
       );
     });
   }
@@ -183,33 +201,34 @@ class ReminderManager {
   async snoozeReminder(reminderId, userId, snoozeMinutes = 30) {
     return new Promise((resolve, reject) => {
       this.db.get(
-        'SELECT * FROM reminders WHERE id = ? AND userId = ? AND status = ?',
-        [reminderId, userId, 'pending'],
+        "SELECT * FROM reminders WHERE id = ? AND userId = ? AND status = ?",
+        [reminderId, userId, "pending"],
         (err, reminder) => {
           if (err) return reject(err);
-          if (!reminder) return reject(new Error('Reminder not found or not owned by user'));
-          
+          if (!reminder)
+            return reject(new Error("Reminder not found or not owned by user"));
+
           let newDueTime;
           if (reminder.dueTime) {
             // If reminder had a due time, add snooze time to it
-            newDueTime = reminder.dueTime + (snoozeMinutes * 60);
+            newDueTime = reminder.dueTime + snoozeMinutes * 60;
           } else {
             // If reminder had no due time, set it to now + snooze time
-            newDueTime = Math.floor(Date.now() / 1000) + (snoozeMinutes * 60);
+            newDueTime = Math.floor(Date.now() / 1000) + snoozeMinutes * 60;
           }
-          
+
           this.db.run(
-            'UPDATE reminders SET dueTime = ? WHERE id = ?',
+            "UPDATE reminders SET dueTime = ? WHERE id = ?",
             [newDueTime, reminderId],
-            function(err) {
+            function (err) {
               if (err) return reject(err);
               resolve({
                 id: reminderId,
-                newDueTime
+                newDueTime,
               });
-            }
+            },
           );
-        }
+        },
       );
     });
   }
@@ -223,13 +242,14 @@ class ReminderManager {
   async deleteReminder(reminderId, userId) {
     return new Promise((resolve, reject) => {
       this.db.run(
-        'DELETE FROM reminders WHERE id = ? AND userId = ?',
+        "DELETE FROM reminders WHERE id = ? AND userId = ?",
         [reminderId, userId],
-        function(err) {
+        function (err) {
           if (err) return reject(err);
-          if (this.changes === 0) return reject(new Error('Reminder not found or not owned by user'));
+          if (this.changes === 0)
+            return reject(new Error("Reminder not found or not owned by user"));
           resolve(true);
-        }
+        },
       );
     });
   }
@@ -266,34 +286,34 @@ class ReminderManager {
   async getReminderSubscribers(reminderId) {
     return new Promise((resolve, reject) => {
       this.db.get(
-        'SELECT userId, categoryId FROM reminders WHERE id = ?',
+        "SELECT userId, categoryId FROM reminders WHERE id = ?",
         [reminderId],
         (err, reminder) => {
           if (err) return reject(err);
           if (!reminder) return resolve([]);
-          
+
           // If no category, only notify the owner
           if (!reminder.categoryId) {
             return resolve([reminder.userId]);
           }
-          
+
           // Otherwise, get all subscribers to this category
           this.db.all(
-            'SELECT userId FROM subscriptions WHERE categoryId = ?',
+            "SELECT userId FROM subscriptions WHERE categoryId = ?",
             [reminder.categoryId],
             (err, subscribers) => {
               if (err) return reject(err);
-              
+
               // Always include the reminder creator
-              const subscriberIds = subscribers.map(sub => sub.userId);
+              const subscriberIds = subscribers.map((sub) => sub.userId);
               if (!subscriberIds.includes(reminder.userId)) {
                 subscriberIds.push(reminder.userId);
               }
-              
+
               resolve(subscriberIds);
-            }
+            },
           );
-        }
+        },
       );
     });
   }

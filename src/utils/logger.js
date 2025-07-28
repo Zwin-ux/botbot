@@ -1,14 +1,14 @@
-import pino from 'pino';
-import pinoPretty from 'pino-pretty';
-import { fileURLToPath } from 'url';
-import path from 'path';
-import fs from 'fs';
-import config from '../config.js';
+import pino from "pino";
+import pinoPretty from "pino-pretty";
+import { fileURLToPath } from "url";
+import path from "path";
+import fs from "fs";
+import config from "../config.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Create logs directory if it doesn't exist
-const logDir = path.join(config.ROOT_DIR, 'logs');
+const logDir = path.join(config.ROOT_DIR, "logs");
 if (!fs.existsSync(logDir)) {
   fs.mkdirSync(logDir, { recursive: true });
 }
@@ -20,29 +20,34 @@ const streams = [
     level: config.LOG_LEVEL,
     stream: pinoPretty({
       colorize: true,
-      translateTime: 'SYS:yyyy-mm-dd HH:MM:ss',
-      ignore: 'pid,hostname',
+      translateTime: "SYS:yyyy-mm-dd HH:MM:ss",
+      ignore: "pid,hostname",
       messageFormat: (log, messageKey) => {
-        if (log.req) return `${log.req.method} ${log.req.url} - ${log.res.statusCode} in ${log.responseTime}ms`;
+        if (log.req)
+          return `${log.req.method} ${log.req.url} - ${log.res.statusCode} in ${log.responseTime}ms`;
         if (log.msg) return log.msg;
-        return '';
+        return "";
       },
     }),
   },
   // File output in production
-  ...(config.isProduction ? [{
-    level: 'info',
-    stream: pino.destination({
-      dest: path.join(logDir, config.LOG_FILE),
-      mkdir: true,
-      sync: false,
-    }),
-  }] : []),
+  ...(config.isProduction
+    ? [
+        {
+          level: "info",
+          stream: pino.destination({
+            dest: path.join(logDir, config.LOG_FILE),
+            mkdir: true,
+            sync: false,
+          }),
+        },
+      ]
+    : []),
   // Error log file for all environments
   {
-    level: 'error',
+    level: "error",
     stream: pino.destination({
-      dest: path.join(logDir, 'error.log'),
+      dest: path.join(logDir, "error.log"),
       mkdir: true,
       sync: false,
     }),
@@ -82,7 +87,7 @@ const logger = pino(
       }),
     },
   },
-  pino.multistream(streams)
+  pino.multistream(streams),
 );
 
 /**
@@ -92,15 +97,15 @@ const logger = pino(
 logger.expressMiddleware = () => {
   return (req, res, next) => {
     const start = Date.now();
-    
-    res.on('finish', () => {
+
+    res.on("finish", () => {
       const responseTime = Date.now() - start;
       const { method, originalUrl, headers } = req;
       const { statusCode } = res;
-      
-      const logLevel = statusCode >= 500 ? 'error' :
-                      statusCode >= 400 ? 'warn' : 'info';
-      
+
+      const logLevel =
+        statusCode >= 500 ? "error" : statusCode >= 400 ? "warn" : "info";
+
       logger[logLevel]({
         req: { method, url: originalUrl, headers },
         res: { statusCode },
@@ -108,7 +113,7 @@ logger.expressMiddleware = () => {
         message: `${method} ${originalUrl} - ${statusCode} in ${responseTime}ms`,
       });
     });
-    
+
     next();
   };
 };
@@ -131,8 +136,8 @@ logger.logError = (error, context = {}, message) => {
       ...(error.response?.data && { response: error.response.data }),
     },
   };
-  
-  logger.error(logContext, message || context.message || 'Error occurred');
+
+  logger.error(logContext, message || context.message || "Error occurred");
 };
 
 /**
@@ -170,18 +175,21 @@ logger.logDebug = (message, context = {}) => {
 logger.logApiResponse = (response, context = {}) => {
   const { status, statusText, config } = response;
   const { method, url, baseURL } = config;
-  
-  logger.info({
-    ...context,
-    response: {
-      status,
-      statusText,
-      url: baseURL ? new URL(url, baseURL).toString() : url,
-      method: method.toUpperCase(),
-      duration: response.duration,
-      data: response.data,
+
+  logger.info(
+    {
+      ...context,
+      response: {
+        status,
+        statusText,
+        url: baseURL ? new URL(url, baseURL).toString() : url,
+        method: method.toUpperCase(),
+        duration: response.duration,
+        data: response.data,
+      },
     },
-  }, `API Response: ${status} ${statusText}`);
+    `API Response: ${status} ${statusText}`,
+  );
 };
 
 /**

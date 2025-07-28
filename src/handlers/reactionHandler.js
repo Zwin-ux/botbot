@@ -1,4 +1,3 @@
-
 class ReactionHandler {
   constructor(client, reactionManager, categoryManager, reminderManager) {
     this.client = client;
@@ -12,16 +11,21 @@ class ReactionHandler {
    */
   initialize() {
     // Listen for reaction add events
-    this.client.on('messageReactionAdd', async (reaction, user) => {
+    this.client.on("messageReactionAdd", async (reaction, user) => {
       // Don't process reactions from bots
       if (user.bot) return;
-      
+
       try {
         // Check if the message has a reminder ID in the footer
         const reminderId = this.getReminderId(reaction.message);
         if (reminderId) {
           // Handle voting
-          await this.handleReminderReaction(reminderId, user.id, reaction.emoji.name, true);
+          await this.handleReminderReaction(
+            reminderId,
+            user.id,
+            reaction.emoji.name,
+            true,
+          );
           return;
         }
 
@@ -29,32 +33,40 @@ class ReactionHandler {
         const categoryId = await this.getCategoryIdFromReaction(reaction);
         if (categoryId) {
           await this.handleCategorySubscription(categoryId, user.id, true);
-          
+
           // Send confirmation DM if possible
           try {
-            const category = await this.categoryManager.getCategoryById(categoryId);
+            const category =
+              await this.categoryManager.getCategoryById(categoryId);
             const dmChannel = await user.createDM();
-            await dmChannel.send(`You've subscribed to the ${category.emoji} **${category.name}** category! You'll be notified of new reminders in this category.`);
+            await dmChannel.send(
+              `You've subscribed to the ${category.emoji} **${category.name}** category! You'll be notified of new reminders in this category.`,
+            );
           } catch (error) {
-            console.error('Error sending DM confirmation:', error);
+            console.error("Error sending DM confirmation:", error);
           }
         }
       } catch (error) {
-        console.error('Error handling reaction add:', error);
+        console.error("Error handling reaction add:", error);
       }
     });
 
     // Listen for reaction remove events
-    this.client.on('messageReactionRemove', async (reaction, user) => {
+    this.client.on("messageReactionRemove", async (reaction, user) => {
       // Don't process reactions from bots
       if (user.bot) return;
-      
+
       try {
         // Check if the message has a reminder ID in the footer
         const reminderId = this.getReminderId(reaction.message);
         if (reminderId) {
           // Handle voting removal
-          await this.handleReminderReaction(reminderId, user.id, reaction.emoji.name, false);
+          await this.handleReminderReaction(
+            reminderId,
+            user.id,
+            reaction.emoji.name,
+            false,
+          );
           return;
         }
 
@@ -62,18 +74,21 @@ class ReactionHandler {
         const categoryId = await this.getCategoryIdFromReaction(reaction);
         if (categoryId) {
           await this.handleCategorySubscription(categoryId, user.id, false);
-          
+
           // Send confirmation DM if possible
           try {
-            const category = await this.categoryManager.getCategoryById(categoryId);
+            const category =
+              await this.categoryManager.getCategoryById(categoryId);
             const dmChannel = await user.createDM();
-            await dmChannel.send(`You've unsubscribed from the ${category.emoji} **${category.name}** category.`);
+            await dmChannel.send(
+              `You've unsubscribed from the ${category.emoji} **${category.name}** category.`,
+            );
           } catch (error) {
-            console.error('Error sending DM confirmation:', error);
+            console.error("Error sending DM confirmation:", error);
           }
         }
       } catch (error) {
-        console.error('Error handling reaction remove:', error);
+        console.error("Error handling reaction remove:", error);
       }
     });
   }
@@ -100,7 +115,9 @@ class ReactionHandler {
       for (const row of message.components) {
         for (const component of row.components) {
           if (component.customId) {
-            const match = component.customId.match(/(?:done|snooze|delete)_(\d+)/);
+            const match = component.customId.match(
+              /(?:done|snooze|delete)_(\d+)/,
+            );
             if (match && match[1]) {
               return parseInt(match[1]);
             }
@@ -136,9 +153,11 @@ class ReactionHandler {
     // Check if this is a categories list message
     if (reaction.message.embeds && reaction.message.embeds.length > 0) {
       const embed = reaction.message.embeds[0];
-      if (embed.title === 'Available Categories') {
+      if (embed.title === "Available Categories") {
         // Find the category with this emoji
-        const category = await this.categoryManager.getCategoryByEmoji(reaction.emoji.name);
+        const category = await this.categoryManager.getCategoryByEmoji(
+          reaction.emoji.name,
+        );
         return category ? category.id : null;
       }
     }
@@ -155,7 +174,10 @@ class ReactionHandler {
     if (subscribe) {
       await this.categoryManager.subscribeUserToCategory(userId, categoryId);
     } else {
-      await this.categoryManager.unsubscribeUserFromCategory(userId, categoryId);
+      await this.categoryManager.unsubscribeUserFromCategory(
+        userId,
+        categoryId,
+      );
     }
   }
 }

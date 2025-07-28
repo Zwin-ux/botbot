@@ -58,18 +58,33 @@ function up(db) {
       `);
 
       // Add indexes for performance
-      db.run(`CREATE INDEX IF NOT EXISTS idx_guild_members_guild ON guild_members(guildId)`);
-      db.run(`CREATE INDEX IF NOT EXISTS idx_guild_members_user ON guild_members(userId)`);
-      db.run(`CREATE INDEX IF NOT EXISTS idx_guild_invites_invitee ON guild_invites(inviteeId)`);
-      db.run(`CREATE INDEX IF NOT EXISTS idx_guild_invites_status ON guild_invites(status)`);
+      db.run(
+        `CREATE INDEX IF NOT EXISTS idx_guild_members_guild ON guild_members(guildId)`,
+      );
+      db.run(
+        `CREATE INDEX IF NOT EXISTS idx_guild_members_user ON guild_members(userId)`,
+      );
+      db.run(
+        `CREATE INDEX IF NOT EXISTS idx_guild_invites_invitee ON guild_invites(inviteeId)`,
+      );
+      db.run(
+        `CREATE INDEX IF NOT EXISTS idx_guild_invites_status ON guild_invites(status)`,
+      );
 
       // Add columns to reminders table to support guild tasks/reminders
-      db.run(`
+      db.run(
+        `
         ALTER TABLE reminders ADD COLUMN guildId INTEGER DEFAULT NULL;
-      `, (err) => {
-        // Ignore error if column already exists
-        console.log(err ? `Warning: ${err.message}` : 'Added guildId column to reminders table');
-      });
+      `,
+        (err) => {
+          // Ignore error if column already exists
+          console.log(
+            err
+              ? `Warning: ${err.message}`
+              : "Added guildId column to reminders table",
+          );
+        },
+      );
 
       // Create relationship between reminders and guilds
       db.run(`

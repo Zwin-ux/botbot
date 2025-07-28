@@ -11,7 +11,7 @@ const OutputManager = {
       await dm.send(text);
     }
     // Future: add web, mobile, etc.
-  }
+  },
 };
 
 module.exports = OutputManager;

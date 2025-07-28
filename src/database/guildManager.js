@@ -21,11 +21,11 @@ class GuildManager {
         `INSERT INTO guilds (name, description, emoji, ownerId)
          VALUES (?, ?, ?, ?)`,
         [name, description, emoji, ownerId],
-        function(err) {
+        function (err) {
           if (err) return reject(err);
-          
+
           const guildId = this.lastID;
-          
+
           // Also add the owner as a member with role 'owner'
           this.db.run(
             `INSERT INTO guild_members (guildId, userId, role)
@@ -33,18 +33,18 @@ class GuildManager {
             [guildId, ownerId],
             (err) => {
               if (err) return reject(err);
-              
+
               resolve({
                 id: guildId,
                 name,
                 description,
                 emoji,
                 ownerId,
-                createdAt: Math.floor(Date.now() / 1000)
+                createdAt: Math.floor(Date.now() / 1000),
               });
-            }
+            },
           );
-        }
+        },
       );
     });
   }
@@ -62,7 +62,7 @@ class GuildManager {
         (err, guild) => {
           if (err) return reject(err);
           resolve(guild || null);
-        }
+        },
       );
     });
   }
@@ -83,7 +83,7 @@ class GuildManager {
         (err, guilds) => {
           if (err) return reject(err);
           resolve(guilds || []);
-        }
+        },
       );
     });
   }
@@ -98,23 +98,25 @@ class GuildManager {
    * @returns {Promise<boolean>} - Success status
    */
   async updateGuild(guildId, updates) {
-    const allowedFields = ['name', 'description', 'emoji'];
-    const fields = Object.keys(updates).filter(field => allowedFields.includes(field));
-    
+    const allowedFields = ["name", "description", "emoji"];
+    const fields = Object.keys(updates).filter((field) =>
+      allowedFields.includes(field),
+    );
+
     if (fields.length === 0) return false;
-    
-    const setClause = fields.map(field => `${field} = ?`).join(', ');
-    const values = fields.map(field => updates[field]);
+
+    const setClause = fields.map((field) => `${field} = ?`).join(", ");
+    const values = fields.map((field) => updates[field]);
     values.push(guildId);
-    
+
     return new Promise((resolve, reject) => {
       this.db.run(
         `UPDATE guilds SET ${setClause} WHERE id = ?`,
         values,
-        function(err) {
+        function (err) {
           if (err) return reject(err);
           resolve(this.changes > 0);
-        }
+        },
       );
     });
   }
@@ -135,18 +137,18 @@ class GuildManager {
           if (err) return reject(err);
           if (!guild) return resolve(false);
           if (guild.ownerId !== userId) return resolve(false);
-          
+
           // If verification passes, delete the guild
           // Foreign key constraints will cascade delete members and invites
           this.db.run(
             `DELETE FROM guilds WHERE id = ?`,
             [guildId],
-            function(err) {
+            function (err) {
               if (err) return reject(err);
               resolve(this.changes > 0);
-            }
+            },
           );
-        }
+        },
       );
     });
   }
@@ -158,7 +160,7 @@ class GuildManager {
    * @param {string} [role='member'] - Member role
    * @returns {Promise<boolean>} - Success status
    */
-  async addMember(guildId, userId, role = 'member') {
+  async addMember(guildId, userId, role = "member") {
     return new Promise((resolve, reject) => {
       this.db.run(
         `INSERT INTO guild_members (guildId, userId, role)
@@ -166,10 +168,10 @@ class GuildManager {
          ON CONFLICT(guildId, userId) 
          DO UPDATE SET role = ?`,
         [guildId, userId, role, role],
-        function(err) {
+        function (err) {
           if (err) return reject(err);
           resolve(this.changes > 0);
-        }
+        },
       );
     });
   }
@@ -184,8 +186,8 @@ class GuildManager {
    */
   async updateMemberRole(guildId, userId, newRole, requesterId) {
     // Can't change owner role through this method
-    if (newRole === 'owner') return false;
-    
+    if (newRole === "owner") return false;
+
     return new Promise((resolve, reject) => {
       // First check if requester has permission (must be owner or admin)
       this.db.get(
@@ -197,14 +199,17 @@ class GuildManager {
         (err, requesterMember) => {
           if (err) return reject(err);
           if (!requesterMember) return resolve(false);
-          
+
           // Only owner or admin can change roles
-          if (requesterMember.role !== 'owner' && requesterMember.role !== 'admin') {
+          if (
+            requesterMember.role !== "owner" &&
+            requesterMember.role !== "admin"
+          ) {
             return resolve(false);
           }
-          
+
           // Admin can't change roles of other admins or owner
-          if (requesterMember.role === 'admin') {
+          if (requesterMember.role === "admin") {
             this.db.get(
               `SELECT role FROM guild_members 
                WHERE guildId = ? AND userId = ?`,
@@ -212,36 +217,39 @@ class GuildManager {
               (err, targetMember) => {
                 if (err) return reject(err);
                 if (!targetMember) return resolve(false);
-                
+
                 // Admin can't change other admins or owner
-                if (targetMember.role === 'admin' || targetMember.role === 'owner') {
+                if (
+                  targetMember.role === "admin" ||
+                  targetMember.role === "owner"
+                ) {
                   return resolve(false);
                 }
-                
+
                 this.updateRole();
-              }
+              },
             );
           } else {
             // Owner can change any role except their own
             if (requesterMember.ownerId === userId) {
               return resolve(false);
             }
-            
+
             this.updateRole();
           }
-          
+
           function updateRole() {
             this.db.run(
               `UPDATE guild_members SET role = ?
                WHERE guildId = ? AND userId = ?`,
               [newRole, guildId, userId],
-              function(err) {
+              function (err) {
                 if (err) return reject(err);
                 resolve(this.changes > 0);
-              }
+              },
             );
           }
-        }
+        },
       );
     });
   }
@@ -265,7 +273,7 @@ class GuildManager {
         (err, requesterMember) => {
           if (err) return reject(err);
           if (!requesterMember) return resolve(false);
-          
+
           // Check if target is owner (can't remove owner)
           this.db.get(
             `SELECT role FROM guild_members 
@@ -274,43 +282,49 @@ class GuildManager {
             (err, targetMember) => {
               if (err) return reject(err);
               if (!targetMember) return resolve(false);
-              
+
               // Can't remove owner
-              if (targetMember.role === 'owner') {
+              if (targetMember.role === "owner") {
                 return resolve(false);
               }
-              
+
               // User can remove themselves
               if (userId === requesterId) {
                 return removeUser();
               }
-              
+
               // Only owner or admin can remove others
-              if (requesterMember.role !== 'owner' && requesterMember.role !== 'admin') {
+              if (
+                requesterMember.role !== "owner" &&
+                requesterMember.role !== "admin"
+              ) {
                 return resolve(false);
               }
-              
+
               // Admin can't remove other admins
-              if (requesterMember.role === 'admin' && targetMember.role === 'admin') {
+              if (
+                requesterMember.role === "admin" &&
+                targetMember.role === "admin"
+              ) {
                 return resolve(false);
               }
-              
+
               removeUser();
-            }
+            },
           );
-          
+
           function removeUser() {
             this.db.run(
               `DELETE FROM guild_members
                WHERE guildId = ? AND userId = ?`,
               [guildId, userId],
-              function(err) {
+              function (err) {
                 if (err) return reject(err);
                 resolve(this.changes > 0);
-              }
+              },
             );
           }
-        }
+        },
       );
     });
   }
@@ -331,7 +345,7 @@ class GuildManager {
         (err, members) => {
           if (err) return reject(err);
           resolve(members || []);
-        }
+        },
       );
     });
   }
@@ -353,10 +367,11 @@ class GuildManager {
         [guildId, inviterId],
         (err, member) => {
           if (err) return reject(err);
-          if (!member) return reject(new Error('Inviter is not a member of this guild'));
-          
+          if (!member)
+            return reject(new Error("Inviter is not a member of this guild"));
+
           // Regular members can invite if the guild allows it (setting)
-          if (member.role === 'member') {
+          if (member.role === "member") {
             this.db.get(
               `SELECT settingValue FROM guild_settings
                WHERE guildId = ? AND settingKey = 'members_can_invite'`,
@@ -364,17 +379,19 @@ class GuildManager {
               (err, setting) => {
                 if (err) return reject(err);
                 // If setting doesn't exist or is false, members can't invite
-                if (!setting || setting.settingValue !== 'true') {
-                  return reject(new Error('Only admins and owners can send invites'));
+                if (!setting || setting.settingValue !== "true") {
+                  return reject(
+                    new Error("Only admins and owners can send invites"),
+                  );
                 }
                 createInvite();
-              }
+              },
             );
           } else {
             // Admins and owners can always invite
             createInvite();
           }
-          
+
           function createInvite() {
             // Check if invitee is already a member
             this.db.get(
@@ -383,8 +400,11 @@ class GuildManager {
               [guildId, inviteeId],
               (err, existingMember) => {
                 if (err) return reject(err);
-                if (existingMember) return reject(new Error('User is already a member of this guild'));
-                
+                if (existingMember)
+                  return reject(
+                    new Error("User is already a member of this guild"),
+                  );
+
                 // Check if there's already a pending invite
                 this.db.get(
                   `SELECT id FROM guild_invites
@@ -392,34 +412,45 @@ class GuildManager {
                   [guildId, inviteeId],
                   (err, existingInvite) => {
                     if (err) return reject(err);
-                    if (existingInvite) return reject(new Error('There is already a pending invite for this user'));
-                    
+                    if (existingInvite)
+                      return reject(
+                        new Error(
+                          "There is already a pending invite for this user",
+                        ),
+                      );
+
                     // Create the invite
                     const now = Math.floor(Date.now() / 1000);
                     this.db.run(
                       `INSERT INTO guild_invites
                        (guildId, inviterId, inviteeId, createdAt, expiresAt)
                        VALUES (?, ?, ?, ?, ?)`,
-                      [guildId, inviterId, inviteeId, now, expiresIn ? now + expiresIn : null],
-                      function(err) {
+                      [
+                        guildId,
+                        inviterId,
+                        inviteeId,
+                        now,
+                        expiresIn ? now + expiresIn : null,
+                      ],
+                      function (err) {
                         if (err) return reject(err);
                         resolve({
                           id: this.lastID,
                           guildId,
                           inviterId,
                           inviteeId,
-                          status: 'pending',
+                          status: "pending",
                           createdAt: now,
-                          expiresAt: expiresIn ? now + expiresIn : null
+                          expiresAt: expiresIn ? now + expiresIn : null,
                         });
-                      }
+                      },
                     );
-                  }
+                  },
                 );
-              }
+              },
             );
           }
-        }
+        },
       );
     });
   }
@@ -442,7 +473,7 @@ class GuildManager {
         (err, invites) => {
           if (err) return reject(err);
           resolve(invites || []);
-        }
+        },
       );
     });
   }
@@ -455,10 +486,12 @@ class GuildManager {
    * @returns {Promise<boolean>} - Success status
    */
   async respondToInvite(inviteId, userId, status) {
-    if (status !== 'accepted' && status !== 'declined') {
-      return Promise.reject(new Error('Invalid status. Must be "accepted" or "declined".'));
+    if (status !== "accepted" && status !== "declined") {
+      return Promise.reject(
+        new Error('Invalid status. Must be "accepted" or "declined".'),
+      );
     }
-    
+
     return new Promise((resolve, reject) => {
       // Get the invite first to verify invitee
       this.db.get(
@@ -469,25 +502,25 @@ class GuildManager {
         (err, invite) => {
           if (err) return reject(err);
           if (!invite) return resolve(false);
-          
+
           // Update the invite status
           this.db.run(
             `UPDATE guild_invites SET status = ? WHERE id = ?`,
             [status, inviteId],
             (err) => {
               if (err) return reject(err);
-              
+
               // If accepted, add the user as a guild member
-              if (status === 'accepted') {
+              if (status === "accepted") {
                 this.addMember(invite.guildId, userId)
                   .then(() => resolve(true))
                   .catch(reject);
               } else {
                 resolve(true);
               }
-            }
+            },
           );
-        }
+        },
       );
     });
   }
@@ -503,7 +536,15 @@ class GuildManager {
    * @param {number} [priority=0] - Priority level
    * @returns {Promise<Object>} - Created reminder
    */
-  async createGuildReminder(guildId, creatorId, content, dueTime, channelId, categoryId = null, priority = 0) {
+  async createGuildReminder(
+    guildId,
+    creatorId,
+    content,
+    dueTime,
+    channelId,
+    categoryId = null,
+    priority = 0,
+  ) {
     return new Promise((resolve, reject) => {
       // First check if the user is a member of the guild
       this.db.get(
@@ -512,8 +553,13 @@ class GuildManager {
         [guildId, creatorId],
         (err, member) => {
           if (err) return reject(err);
-          if (!member) return reject(new Error('You must be a member of the guild to create reminders'));
-          
+          if (!member)
+            return reject(
+              new Error(
+                "You must be a member of the guild to create reminders",
+              ),
+            );
+
           // Insert the reminder
           this.db.run(
             `INSERT INTO reminders
@@ -521,17 +567,17 @@ class GuildManager {
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, cast(strftime('%s', 'now') as int))`,
             [
               creatorId,
-              'Guild Reminder', // Will be updated with user tag when fetched
+              "Guild Reminder", // Will be updated with user tag when fetched
               content,
               dueTime ? Math.floor(dueTime.getTime() / 1000) : null,
               channelId,
               categoryId,
               priority,
-              guildId
+              guildId,
             ],
-            function(err) {
+            function (err) {
               if (err) return reject(err);
-              
+
               resolve({
                 id: this.lastID,
                 userId: creatorId,
@@ -540,11 +586,11 @@ class GuildManager {
                 channelId,
                 categoryId,
                 priority,
-                guildId
+                guildId,
               });
-            }
+            },
           );
-        }
+        },
       );
     });
   }
@@ -555,7 +601,7 @@ class GuildManager {
    * @param {string} [status='pending'] - Reminder status
    * @returns {Promise<Array>} - Array of reminder objects
    */
-  async getGuildReminders(guildId, status = 'pending') {
+  async getGuildReminders(guildId, status = "pending") {
     return new Promise((resolve, reject) => {
       this.db.all(
         `SELECT * FROM reminders
@@ -565,7 +611,7 @@ class GuildManager {
         (err, reminders) => {
           if (err) return reject(err);
           resolve(reminders || []);
-        }
+        },
       );
     });
   }

@@ -6,8 +6,8 @@
 export default {
   up: async (db) => {
     // Enable foreign keys
-    await db.run('PRAGMA foreign_keys = ON');
-    
+    await db.run("PRAGMA foreign_keys = ON");
+
     // Create games table
     await db.run(`
       CREATE TABLE IF NOT EXISTS games (
@@ -80,23 +80,41 @@ export default {
     `);
 
     // Create indexes
-    await db.run('CREATE INDEX IF NOT EXISTS idx_games_channel_status ON games(channel_id, status)');
-    await db.run('CREATE INDEX IF NOT EXISTS idx_games_status ON games(status)');
-    await db.run('CREATE INDEX IF NOT EXISTS idx_game_players_game ON game_players(game_id)');
-    await db.run('CREATE INDEX IF NOT EXISTS idx_game_players_user ON game_players(user_id)');
-    await db.run('CREATE INDEX IF NOT EXISTS idx_reminders_user ON reminders(user_id)');
-    await db.run('CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(due_time)');
-    await db.run('CREATE INDEX IF NOT EXISTS idx_reminders_status ON reminders(status)');
-    await db.run('CREATE INDEX IF NOT EXISTS idx_reactions_reminder ON reactions(reminder_id)');
-    await db.run('CREATE INDEX IF NOT EXISTS idx_reactions_user ON reactions(user_id)');
+    await db.run(
+      "CREATE INDEX IF NOT EXISTS idx_games_channel_status ON games(channel_id, status)",
+    );
+    await db.run(
+      "CREATE INDEX IF NOT EXISTS idx_games_status ON games(status)",
+    );
+    await db.run(
+      "CREATE INDEX IF NOT EXISTS idx_game_players_game ON game_players(game_id)",
+    );
+    await db.run(
+      "CREATE INDEX IF NOT EXISTS idx_game_players_user ON game_players(user_id)",
+    );
+    await db.run(
+      "CREATE INDEX IF NOT EXISTS idx_reminders_user ON reminders(user_id)",
+    );
+    await db.run(
+      "CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(due_time)",
+    );
+    await db.run(
+      "CREATE INDEX IF NOT EXISTS idx_reminders_status ON reminders(status)",
+    );
+    await db.run(
+      "CREATE INDEX IF NOT EXISTS idx_reactions_reminder ON reactions(reminder_id)",
+    );
+    await db.run(
+      "CREATE INDEX IF NOT EXISTS idx_reactions_user ON reactions(user_id)",
+    );
   },
 
   down: async (db) => {
     // Drop tables in reverse order of creation
-    await db.run('DROP TABLE IF EXISTS reactions');
-    await db.run('DROP TABLE IF EXISTS game_players');
-    await db.run('DROP TABLE IF EXISTS games');
-    await db.run('DROP TABLE IF EXISTS reminders');
-    await db.run('DROP TABLE IF EXISTS categories');
-  }
+    await db.run("DROP TABLE IF EXISTS reactions");
+    await db.run("DROP TABLE IF EXISTS game_players");
+    await db.run("DROP TABLE IF EXISTS games");
+    await db.run("DROP TABLE IF EXISTS reminders");
+    await db.run("DROP TABLE IF EXISTS categories");
+  },
 };

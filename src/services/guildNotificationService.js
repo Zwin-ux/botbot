@@ -20,7 +20,7 @@ class GuildNotificationService {
       success: 0,
       failed: 0,
       channelSent: false,
-      errors: []
+      errors: [],
     };
 
     try {
@@ -52,11 +52,11 @@ class GuildNotificationService {
             results.channelSent = true;
           }
         } catch (error) {
-          console.error('Error sending to channel:', error);
+          console.error("Error sending to channel:", error);
           results.errors.push({
-            type: 'channel',
+            type: "channel",
             id: channelId,
-            error: error.message
+            error: error.message,
           });
         }
       }
@@ -66,10 +66,10 @@ class GuildNotificationService {
         try {
           // Fetch Discord user
           const user = await this.client.users.fetch(member.userId);
-          
+
           // Skip if bot
           if (user.bot) continue;
-          
+
           // Send DM
           await user.send({ embeds: [embed] });
           results.success++;
@@ -77,16 +77,16 @@ class GuildNotificationService {
           console.error(`Error sending to user ${member.userId}:`, error);
           results.failed++;
           results.errors.push({
-            type: 'user',
+            type: "user",
             id: member.userId,
-            error: error.message
+            error: error.message,
           });
         }
       }
 
       return results;
     } catch (error) {
-      console.error('Error in guild notification:', error);
+      console.error("Error in guild notification:", error);
       throw error;
     }
   }
@@ -98,12 +98,12 @@ class GuildNotificationService {
    */
   async sendReminderNotification(reminder) {
     if (!reminder.guildId) {
-      throw new Error('Not a guild reminder');
+      throw new Error("Not a guild reminder");
     }
 
     // Get guild info
     const guild = await this.guildManager.getGuildById(reminder.guildId);
-    
+
     // Create embed
     const embed = {
       color: 0xf39c12,
@@ -111,25 +111,25 @@ class GuildNotificationService {
       description: reminder.content,
       fields: [
         {
-          name: 'Guild',
+          name: "Guild",
           value: guild.name,
-          inline: true
+          inline: true,
         },
         {
-          name: 'Due',
-          value: reminder.dueTime 
-            ? new Date(reminder.dueTime * 1000).toLocaleString() 
-            : 'No specific time',
-          inline: true
+          name: "Due",
+          value: reminder.dueTime
+            ? new Date(reminder.dueTime * 1000).toLocaleString()
+            : "No specific time",
+          inline: true,
         },
         {
-          name: 'Mark as Done',
-          value: `Say "complete guild task ${reminder.id}"`
-        }
+          name: "Mark as Done",
+          value: `Say "complete guild task ${reminder.id}"`,
+        },
       ],
       footer: {
-        text: 'Guild reminder'
-      }
+        text: "Guild reminder",
+      },
     };
 
     // Send notification
@@ -159,37 +159,38 @@ class GuildNotificationService {
         description: `<@${userId}> has joined the guild!`,
         fields: [
           {
-            name: 'Members',
-            value: `${memberCount} ${memberCount === 1 ? 'member' : 'members'} in total`,
-            inline: true
+            name: "Members",
+            value: `${memberCount} ${memberCount === 1 ? "member" : "members"} in total`,
+            inline: true,
           },
           {
-            name: 'Get Started',
-            value: 'Say "show guild tasks" to see active tasks\nSay "show guild members" to see who\'s in the guild'
-          }
+            name: "Get Started",
+            value:
+              'Say "show guild tasks" to see active tasks\nSay "show guild members" to see who\'s in the guild',
+          },
         ],
         footer: {
-          text: 'Guild notification'
-        }
+          text: "Guild notification",
+        },
       };
 
       // Send to all guild members except the new one
       for (const member of members) {
         if (member.userId === userId) continue;
-        
+
         try {
           const user = await this.client.users.fetch(member.userId);
           if (user.bot) continue;
-          
+
           await user.send({ embeds: [embed] });
         } catch (error) {
-          console.error('Error sending welcome notification:', error);
+          console.error("Error sending welcome notification:", error);
         }
       }
 
       return true;
     } catch (error) {
-      console.error('Error sending welcome notification:', error);
+      console.error("Error sending welcome notification:", error);
       return false;
     }
   }
@@ -206,12 +207,12 @@ class GuildNotificationService {
       if (!guild) return false;
 
       // Get inviter user
-      let inviterName = 'A guild member';
+      let inviterName = "A guild member";
       try {
         const inviter = await this.client.users.fetch(invite.inviterId);
         inviterName = inviter.username;
       } catch (error) {
-        console.error('Error fetching inviter:', error);
+        console.error("Error fetching inviter:", error);
       }
 
       // Create embed
@@ -221,26 +222,26 @@ class GuildNotificationService {
         description: `${inviterName} has invited you to join their guild!`,
         fields: [
           {
-            name: 'Guild',
+            name: "Guild",
             value: guild.name,
-            inline: true
+            inline: true,
           },
           {
-            name: 'How to Accept',
+            name: "How to Accept",
             value: `Say "accept guild invite from ${guild.name}" to join!`,
-            inline: false
-          }
+            inline: false,
+          },
         ],
         footer: {
-          text: 'Guild invitation'
-        }
+          text: "Guild invitation",
+        },
       };
 
       if (guild.description) {
         embed.fields.push({
-          name: 'Description',
+          name: "Description",
           value: guild.description,
-          inline: false
+          inline: false,
         });
       }
 
@@ -250,7 +251,7 @@ class GuildNotificationService {
 
       return true;
     } catch (error) {
-      console.error('Error sending invite notification:', error);
+      console.error("Error sending invite notification:", error);
       return false;
     }
   }
@@ -266,10 +267,10 @@ class GuildNotificationService {
 
       // Get all due guild reminders
       const dueReminders = await this.guildManager.getGuildReminders();
-      
+
       // Filter for due reminders
-      const processingReminders = dueReminders.filter(r => 
-        r.dueTime && r.dueTime <= now && r.status === 'pending'
+      const processingReminders = dueReminders.filter(
+        (r) => r.dueTime && r.dueTime <= now && r.status === "pending",
       );
 
       // Process each reminder
@@ -280,13 +281,13 @@ class GuildNotificationService {
           await this.sendReminderNotification(reminder);
           processed.push(reminder);
         } catch (error) {
-          console.error('Error processing guild reminder:', error);
+          console.error("Error processing guild reminder:", error);
         }
       }
 
       return processed;
     } catch (error) {
-      console.error('Error processing guild reminders:', error);
+      console.error("Error processing guild reminders:", error);
       return [];
     }
   }

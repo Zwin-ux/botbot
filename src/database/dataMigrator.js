@@ -15,16 +15,16 @@ class DataMigrator {
    */
   async getUncategorizedReminders(userId = null) {
     return new Promise((resolve, reject) => {
-      let query = 'SELECT * FROM reminders WHERE categoryId IS NULL';
+      let query = "SELECT * FROM reminders WHERE categoryId IS NULL";
       const params = [];
-      
+
       if (userId) {
-        query += ' AND userId = ?';
+        query += " AND userId = ?";
         params.push(userId);
       }
-      
-      query += ' ORDER BY dueTime ASC NULLS LAST';
-      
+
+      query += " ORDER BY dueTime ASC NULLS LAST";
+
       this.db.all(query, params, (err, rows) => {
         if (err) return reject(err);
         resolve(rows);
@@ -42,22 +42,22 @@ class DataMigrator {
     const results = {
       total: 0,
       categorized: 0,
-      byCategory: {}
+      byCategory: {},
     };
-    
+
     try {
       // Get uncategorized reminders
       const reminders = await this.getUncategorizedReminders(userId);
       results.total = reminders.length;
-      
+
       // Process each reminder
       for (const reminder of reminders) {
         for (const [pattern, categoryId] of Object.entries(patterns)) {
-          const regex = new RegExp(pattern, 'i');
+          const regex = new RegExp(pattern, "i");
           if (regex.test(reminder.content)) {
             // Update reminder with category
             await this.updateReminderCategory(reminder.id, categoryId);
-            
+
             // Track results
             if (!results.byCategory[categoryId]) {
               results.byCategory[categoryId] = 0;
@@ -68,10 +68,10 @@ class DataMigrator {
           }
         }
       }
-      
+
       return results;
     } catch (error) {
-      console.error('Error in bulk categorization:', error);
+      console.error("Error in bulk categorization:", error);
       throw error;
     }
   }
@@ -86,30 +86,58 @@ class DataMigrator {
       // Get all categories
       const categories = await this.categoryManager.getAllCategories();
       const suggestions = [];
-      
+
       // Simple keyword-based scoring
       const keywords = {
-        '📝': ['document', 'write', 'note', 'update', 'report', 'draft'],
-        '👤': ['personal', 'family', 'health', 'doctor', 'appointment', 'gym', 'call', 'buy'],
-        '💼': ['meeting', 'client', 'email', 'presentation', 'review', 'work', 'project', 'deadline'],
-        '🚨': ['urgent', 'immediately', 'asap', 'emergency', 'critical', 'important', 'due'],
-        '🚀': ['release', 'deploy', 'launch', 'ship', 'milestone', 'goal']
+        "📝": ["document", "write", "note", "update", "report", "draft"],
+        "👤": [
+          "personal",
+          "family",
+          "health",
+          "doctor",
+          "appointment",
+          "gym",
+          "call",
+          "buy",
+        ],
+        "💼": [
+          "meeting",
+          "client",
+          "email",
+          "presentation",
+          "review",
+          "work",
+          "project",
+          "deadline",
+        ],
+        "🚨": [
+          "urgent",
+          "immediately",
+          "asap",
+          "emergency",
+          "critical",
+          "important",
+          "due",
+        ],
+        "🚀": ["release", "deploy", "launch", "ship", "milestone", "goal"],
       };
-      
+
       // Score each category
       for (const category of categories) {
         let score = 0;
-        
+
         // Check for exact emoji match
         if (reminderContent.includes(category.emoji)) {
           score += 5;
         }
-        
+
         // Check for name match
-        if (reminderContent.toLowerCase().includes(category.name.toLowerCase())) {
+        if (
+          reminderContent.toLowerCase().includes(category.name.toLowerCase())
+        ) {
           score += 4;
         }
-        
+
         // Check for keyword matches
         const categoryKeywords = keywords[category.emoji] || [];
         for (const keyword of categoryKeywords) {
@@ -117,23 +145,23 @@ class DataMigrator {
             score += 2;
           }
         }
-        
+
         if (score > 0) {
           suggestions.push({
             id: category.id,
             name: category.name,
             emoji: category.emoji,
-            score: score
+            score: score,
           });
         }
       }
-      
+
       // Sort by score (descending)
       suggestions.sort((a, b) => b.score - a.score);
-      
+
       return suggestions;
     } catch (error) {
-      console.error('Error suggesting categories:', error);
+      console.error("Error suggesting categories:", error);
       return [];
     }
   }
@@ -147,12 +175,12 @@ class DataMigrator {
   async updateReminderCategory(reminderId, categoryId) {
     return new Promise((resolve, reject) => {
       this.db.run(
-        'UPDATE reminders SET categoryId = ? WHERE id = ?',
+        "UPDATE reminders SET categoryId = ? WHERE id = ?",
         [categoryId, reminderId],
-        function(err) {
+        function (err) {
           if (err) return reject(err);
           resolve(this.changes > 0);
-        }
+        },
       );
     });
   }
@@ -164,29 +192,30 @@ class DataMigrator {
   async generateMigrationReport() {
     try {
       const categories = await this.categoryManager.getAllCategories();
-      const uncategorizedCount = (await this.getUncategorizedReminders()).length;
-      
+      const uncategorizedCount = (await this.getUncategorizedReminders())
+        .length;
+
       let report = `# Reminder Migration Report\n\n`;
       report += `## Status\n`;
       report += `- **Uncategorized reminders:** ${uncategorizedCount}\n\n`;
-      
+
       report += `## Categories\n`;
       for (const category of categories) {
         // Count reminders in this category
         const count = await this.getCategoryReminderCount(category.id);
         report += `- ${category.emoji} **${category.name}:** ${count} reminders\n`;
       }
-      
+
       report += `\n## Migration Commands\n`;
       report += `- \`migrate list\` - Show uncategorized reminders\n`;
       report += `- \`migrate suggest [id]\` - Get category suggestions for a reminder\n`;
       report += `- \`migrate set [id] [emoji]\` - Set a reminder's category\n`;
       report += `- \`migrate auto\` - Auto-categorize reminders based on content\n`;
-      
+
       return report;
     } catch (error) {
-      console.error('Error generating migration report:', error);
-      return 'Error generating migration report.';
+      console.error("Error generating migration report:", error);
+      return "Error generating migration report.";
     }
   }
 
@@ -198,12 +227,12 @@ class DataMigrator {
   async getCategoryReminderCount(categoryId) {
     return new Promise((resolve, reject) => {
       this.db.get(
-        'SELECT COUNT(*) as count FROM reminders WHERE categoryId = ?',
+        "SELECT COUNT(*) as count FROM reminders WHERE categoryId = ?",
         [categoryId],
         (err, row) => {
           if (err) return reject(err);
           resolve(row ? row.count : 0);
-        }
+        },
       );
     });
   }
