@@ -1,4 +1,3 @@
-import { performance } from "../utils/performance.js";
 import { analytics } from "../utils/analytics.js";
 import { cache } from "../utils/cache.js";
 // Simple fetch mock for testing

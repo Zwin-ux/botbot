@@ -1,4 +1,4 @@
-import { performance } from "../utils/performance.js";
+
 import { analytics } from "../utils/analytics.js";
 import { cache } from "../utils/cache.js";
 import { alerting } from "../utils/alerting.js";
