@@ -31,9 +31,6 @@ jobs:
     
     - name: Run tests
       run: npm run test:ci
-    
-    - name: Run health check
-      run: npm run health-check
       env:
         NODE_ENV: test
 

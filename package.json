@@ -40,13 +40,13 @@
     "format": "prettier --write \"**/*.{js,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,json,md}\"",
     "prepare": "husky install",
-    "db:migrate": "node src/scripts/migrate.js",
+    "db:migrate": "node scripts/migrate-safe.js",
     "db:rollback": "node src/scripts/migrate.js --rollback",
     "deploy:vercel": "vercel --prod",
     "deploy:netlify": "netlify deploy --prod",
     "deploy:railway": "railway up",
     "health-check": "node scripts/health-check.js",
-    "postinstall": "npm run db:migrate"
+    "setup:db": "npm run db:migrate"
   },
   "keywords": [
     "discord",

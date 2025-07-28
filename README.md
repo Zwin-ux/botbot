@@ -5,6 +5,10 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Discord](https://img.shields.io/badge/discord-join-7289da.svg)](https://discord.gg/your-invite)
 
+
+
+Botbot is like 60-70% done, the natural language texting is working, TL;DR if yall dont read all this fluff im making a alexa AI type bot for didscord servers
+
 BotBot is the most advanced and feature-rich Discord bot designed for team productivity, engagement, and collaboration. With cutting-edge AI capabilities, comprehensive analytics, and enterprise-grade features, BotBot transforms your Discord server into a powerful productivity hub.
 
 ## 🚀 Key Features
