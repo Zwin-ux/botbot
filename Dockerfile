@@ -7,8 +7,12 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Set environment to production to skip dev scripts
+ENV NODE_ENV=production
+ENV CI=true
+
+# Install dependencies (skip prepare scripts in production)
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 # Copy source code
 COPY . .
