@@ -1,4 +1,3 @@
-import { performance } from "./performance.js";
 import { analytics } from "./analytics.js";
 import { cache } from "./cache.js";
 import {
