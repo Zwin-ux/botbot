@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(test:*)",
+      "Bash(npm run db:generate:*)",
+      "Bash(npm run db:push:*)",
+      "Bash(npx dotenv:*)",
+      "Bash(docker --version:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(start \"\" \"C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe\")",
+      "Bash(timeout:*)",
+      "Bash(docker info:*)",
+      "Bash(/dev/null)",
+      "Bash(npm run dev:*)",
+      "Bash(find:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker-compose restart:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

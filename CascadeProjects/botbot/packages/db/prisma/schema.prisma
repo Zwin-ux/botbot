@@ -1,0 +1,295 @@
+// This is your Prisma schema file
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [vector]
+}
+
+// User accounts (linked to Discord)
+model User {
+  id         String   @id @default(cuid())
+  discordId  String   @unique @map("discord_id")
+  email      String?  @unique
+  username   String?
+  avatar     String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  agents       Agent[]
+  memories     Memory[]
+  conversations Conversation[]
+  personalityTemplates PersonalityTemplate[]
+  personalityRatings PersonalityRating[]
+  personalityDeployments PersonalityDeployment[]
+
+  @@map("users")
+}
+
+// AI Agents (Character personas)
+model Agent {
+  id           String   @id @default(cuid())
+  ownerUserId  String   @map("owner_user_id")
+  name         String
+  persona      String   @db.Text
+  systemPrompt String   @map("system_prompt") @db.Text
+  traits       Json     @default("{}")
+  status       AgentStatus @default(ACTIVE)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  owner        User     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  instances    AgentInstance[]
+  conversations Conversation[]
+  memories     Memory[]
+  tools        Tool[]
+  personalityDeployments PersonalityDeployment[]
+
+  @@index([ownerUserId])
+  @@map("agents")
+}
+
+enum AgentStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+// Agent runtime state
+model AgentInstance {
+  id          String   @id @default(cuid())
+  agentId     String   @map("agent_id")
+  environment Json     @default("{}")
+  mood        Json     @default("{}")
+  energy      Int      @default(100)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  events      Event[]
+
+  @@index([agentId])
+  @@map("agent_instances")
+}
+
+// Conversation threads
+model Conversation {
+  id               String      @id @default(cuid())
+  agentId          String      @map("agent_id")
+  userId           String      @map("user_id")
+  channelType      ChannelType @map("channel_type")
+  discordChannelId String?     @map("discord_channel_id")
+  discordThreadId  String?     @map("discord_thread_id")
+  metadata         Json        @default("{}")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  agent     Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]
+
+  @@index([agentId])
+  @@index([userId])
+  @@index([discordChannelId])
+  @@map("conversations")
+}
+
+enum ChannelType {
+  DM
+  GUILD_TEXT
+  THREAD
+  WEB
+}
+
+// Messages in conversations
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String   @map("conversation_id")
+  sender         MessageSender
+  content        String   @db.Text
+  tokens         Int?
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relations
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+enum MessageSender {
+  USER
+  AGENT
+  SYSTEM
+}
+
+// Long-term memories with vector embeddings
+model Memory {
+  id             String     @id @default(cuid())
+  agentId        String     @map("agent_id")
+  userId         String?    @map("user_id")
+  kind           MemoryKind
+  content        String     @db.Text
+  embedding      Unsupported("vector(1536)")?
+  salience       Float      @default(0.5)
+  lastAccessedAt DateTime   @default(now()) @map("last_accessed_at")
+  expiresAt      DateTime?  @map("expires_at")
+  metadata       Json       @default("{}")
+  createdAt      DateTime   @default(now()) @map("created_at")
+
+  // Relations
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
+  @@index([userId])
+  @@index([kind])
+  @@index([salience])
+  @@map("memories")
+}
+
+enum MemoryKind {
+  FACT
+  PREFERENCE
+  EVENT
+  EMOTION
+}
+
+// Agent tools/capabilities
+model Tool {
+  id       String  @id @default(cuid())
+  agentId  String  @map("agent_id")
+  name     String
+  schema   Json
+  enabled  Boolean @default(true)
+  metadata Json    @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
+  @@unique([agentId, name])
+  @@map("tools")
+}
+
+// Agent lifecycle events
+model Event {
+  id              String   @id @default(cuid())
+  agentInstanceId String   @map("agent_instance_id")
+  type            String
+  payload         Json     @default("{}")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  instance AgentInstance @relation(fields: [agentInstanceId], references: [id], onDelete: Cascade)
+
+  @@index([agentInstanceId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("events")
+}
+
+// Rate limiting (replaces Redis)
+model RateLimit {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  action    String   // "message", "adopt", etc.
+  count     Int      @default(1)
+  windowStart DateTime @map("window_start")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, action, windowStart])
+  @@map("rate_limits")
+}
+
+// Personality marketplace models
+model PersonalityTemplate {
+  id          String   @id @default(cuid())
+  creatorId   String   @map("creator_id")
+  name        String
+  description String   @db.Text
+  persona     String   @db.Text
+  systemPrompt String  @map("system_prompt") @db.Text
+  traits      Json     @default("{}")
+  tags        String[] @default([])
+  category    String
+  isPublic    Boolean  @default(false) @map("is_public")
+  isVerified  Boolean  @default(false) @map("is_verified")
+  price       Decimal? @db.Decimal(10, 2)
+  downloadCount Int    @default(0) @map("download_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  creator     User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  ratings     PersonalityRating[]
+  deployments PersonalityDeployment[]
+
+  @@index([creatorId])
+  @@index([category])
+  @@index([isPublic])
+  @@index([isVerified])
+  @@index([downloadCount])
+  @@map("personality_templates")
+}
+
+model PersonalityRating {
+  id         String   @id @default(cuid())
+  templateId String   @map("template_id")
+  userId     String   @map("user_id")
+  rating     Int      // 1-5 stars
+  review     String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  template PersonalityTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, userId])
+  @@index([templateId])
+  @@index([userId])
+  @@index([rating])
+  @@map("personality_ratings")
+}
+
+model PersonalityDeployment {
+  id         String   @id @default(cuid())
+  templateId String   @map("template_id")
+  agentId    String   @map("agent_id")
+  userId     String   @map("user_id")
+  status     DeploymentStatus @default(ACTIVE)
+  metadata   Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  template PersonalityTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  agent    Agent               @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId])
+  @@index([templateId])
+  @@index([userId])
+  @@index([status])
+  @@map("personality_deployments")
+}
+
+enum DeploymentStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}

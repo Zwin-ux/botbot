@@ -1,0 +1,24 @@
+{
+  "name": "@botbot/bot",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "clean": "rm -rf .turbo node_modules dist"
+  },
+  "dependencies": {
+    "@botbot/core": "*",
+    "@botbot/db": "*",
+    "@botbot/shared": "*",
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}
