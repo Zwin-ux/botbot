@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(python tests/test_env_smoke.py:*)",
+      "Bash(python setup_check.py:*)",
+      "Bash(python test_adapter_standalone.py:*)",
+      "Bash(adapter_implementation.patch)",
+      "Bash(\"C:\\Users\\mzwin\\ATC\\visualization\\README.md\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

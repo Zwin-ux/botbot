@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATC Training Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            overflow: hidden;
+        }
+
+        .header {
+            background: #16213e;
+            padding: 15px 30px;
+            border-bottom: 2px solid #0f3460;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #e94560;
+        }
+
+        .status {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #666;
+            transition: background 0.3s;
+        }
+
+        .status-indicator.connected {
+            background: #4caf50;
+            box-shadow: 0 0 10px #4caf50;
+        }
+
+        .main-container {
+            display: flex;
+            height: calc(100vh - 70px);
+        }
+
+        .viewer-panel {
+            flex: 1;
+            position: relative;
+            background: #0f3460;
+        }
+
+        #canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .metrics-panel {
+            width: 350px;
+            background: #16213e;
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 2px solid #0f3460;
+        }
+
+        .metric-card {
+            background: #1a1a2e;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #e94560;
+        }
+
+        .metric-title {
+            font-size: 12px;
+            color: #aaa;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .metric-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .metric-value.alert {
+            color: #e94560;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(22, 33, 62, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            background: #e94560;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #c7354f;
+        }
+
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+
+        .aircraft-label {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            transform: translate(-50%, -100%);
+        }
+
+        .legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(22, 33, 62, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>ATC Training Visualizer</h1>
+        <div class="status">
+            <span>Server Status:</span>
+            <div class="status-indicator" id="status"></div>
+            <span id="status-text">Disconnected</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="viewer-panel">
+            <canvas id="canvas"></canvas>
+
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #4caf50;"></div>
+                    <span>Low Altitude (< 15k ft)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #2196f3;"></div>
+                    <span>Medium Altitude (15k-25k ft)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ff9800;"></div>
+                    <span>High Altitude (> 25k ft)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #e94560;"></div>
+                    <span>Separation Violation</span>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button id="play-pause">▶ Play</button>
+                <button id="reset">↻ Reset</button>
+                <button id="speed">1x</button>
+            </div>
+        </div>
+
+        <div class="metrics-panel">
+            <div class="metric-card">
+                <div class="metric-title">Episode</div>
+                <div class="metric-value" id="episode">0</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-title">Step</div>
+                <div class="metric-value" id="step">0</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-title">Total Reward</div>
+                <div class="metric-value" id="reward">0.00</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-title">LoS Events</div>
+                <div class="metric-value alert" id="los">0</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-title">Min Separation (NM)</div>
+                <div class="metric-value" id="min-sep">∞</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-title">Aircraft Alive</div>
+                <div class="metric-value" id="alive">0</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-title">Mean Reward (100 ep)</div>
+                <div class="metric-value" id="mean-reward">—</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="visualizer.js"></script>
+</body>
+</html>

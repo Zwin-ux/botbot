@@ -1,0 +1,192 @@
+{
+  "project": {
+    "name": "ST-01 Observer",
+    "descriptor": "Experimental AI ATC observation platform with real-time visualization, automated reasoning, and minimal engineering UI.",
+    "principles": [
+      "Truth over aesthetics",
+      "SVG-first, no gradients, no drop shadows",
+      "Dark neutral base, cyan as functional accent",
+      "Readable at 12–14px, WCAG AA or better",
+      "Deterministic motion: radar sweep every 3s"
+    ]
+  },
+  "brand": {
+    "logo_svg": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200' role='img' aria-label='ST-01 Observer logo'><g fill='none' stroke='currentColor' stroke-width='8'><circle cx='100' cy='100' r='70'/><circle cx='100' cy='100' r='45'/></g><circle cx='140' cy='80' r='6' fill='currentColor'/></svg>",
+    "colors": {
+      "carbon_black": "#0B0C0E",
+      "graphite": "#1A1B1D",
+      "radar_cyan": "#3BF4FB",
+      "neutral_gray": "#7A7C80",
+      "white": "#F5F7FA",
+      "alert_red": "#FF4D4D",
+      "border": "#2A2B2E"
+    },
+    "typography": {
+      "ui_primary": "Inter Tight, ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial",
+      "data_mono": "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+      "rules": [
+        "H1 22–28px, semibold",
+        "Body 14–16px, regular",
+        "Code 12–13px, regular",
+        "Letterspacing tight; line-height 1.3–1.5"
+      ]
+    },
+    "iconography": {
+      "style": "Monoline, 1.5–2px stroke at 24px grid, rounded caps, no fills except state dots.",
+      "set": ["play", "pause", "reset", "alert", "aircraft", "sector", "chart", "terminal"]
+    }
+  },
+  "global": {
+    "layout": {
+      "grid": "12-column fluid, 8px base spacing scale",
+      "surface": "Graphite background, Carbon panels with 1px Neutral Gray borders, 8–12px radius"
+    },
+    "motion": {
+      "radar_sweep_period_s": 3,
+      "blip_pulse_ms": 240,
+      "easing": "linear for sweep, ease-out for pulses",
+      "transitions": "opacity + translateY 4–8px, 120–180ms"
+    },
+    "accessibility": {
+      "contrast": "AA or better",
+      "focus": "2px outline in Radar Cyan, 3px offset shadow in Carbon",
+      "states": "Disabled at 60% opacity; alerts use desaturated red #FF4D4D on Carbon"
+    }
+  },
+  "scenes": {
+    "dashboard": {
+      "goal": "Live ATC scenario and training state verification",
+      "panels": [
+        {
+          "id": "scene-canvas",
+          "type": "canvas",
+          "content": "Aircraft tracks, separation rings, conflict highlights, sector grid.",
+          "style": "No textures. Cyan for active tracks; Neutral Gray for grid; warning in #FF4D4D.",
+          "fps_target": 30
+        },
+        {
+          "id": "metrics",
+          "type": "charts",
+          "content": [
+            "Episode reward over time (line)",
+            "Safety violations per N steps (bar)",
+            "Policy confidence distribution (sparkline)"
+          ],
+          "rules": "Monochrome lines, cyan highlight on hover, gridlines at 10% opacity."
+        },
+        {
+          "id": "controls",
+          "type": "controls",
+          "content": ["Start", "Pause", "Scenario select", "Rate limit slider"],
+          "layout": "Compact horizontal row, icon + label"
+        },
+        {
+          "id": "decision-feed",
+          "type": "log",
+          "content": "Rolling 100 decisions with timestamps, observation hash, action, confidence.",
+          "format": "Monospace table, 12–13px, zebra rows at 4% white tint."
+        }
+      ]
+    },
+    "terminal": {
+      "goal": "Developer console for event stream and diagnostics",
+      "theme": {
+        "bg": "#0B0C0E",
+        "fg": "#F5F7FA",
+        "accent": "#3BF4FB",
+        "dim": "#7A7C80"
+      },
+      "widgets": [
+        "WebSocket status (dot: gray|cyan|red)",
+        "Throughput meter msgs/s",
+        "Memory + CPU mini bars",
+        "Filter chips: env.step | policy.decision | safety.violation"
+      ],
+      "log_format": "[HH:MM:SS.mmm] <topic> key=value ...",
+      "keybinds": {
+        "clear": "Ctrl+K",
+        "pause": "Space",
+        "copy_line": "Ctrl+C"
+      }
+    },
+    "docs": {
+      "goal": "Readable spec + reasoning notebooks",
+      "modes": ["dark", "light"],
+      "rules": [
+        "Max width 72ch",
+        "H1-H3 use Inter Tight, body uses Inter",
+        "Code blocks JetBrains Mono, 12–13px",
+        "Callouts: Info (cyan left border), Warning (red left border)"
+      ],
+      "components": ["TOC sticky", "On-page anchors", "Copy code", "SVG diagrams"]
+    },
+    "landing": {
+      "hero": {
+        "headline": "ST-01 Observer",
+        "sub": "Experimental AI ATC observation and reasoning environment",
+        "cta": ["Open Dashboard", "Read Docs"]
+      },
+      "visual": "Centered Synthetic Eye mark with slow sweep; no stock imagery."
+    },
+    "motion_clip": {
+      "duration_s": 10,
+      "loop": true,
+      "description": "Dark control surface with concentric rings. A cyan sweep rotates once every 3 seconds. A single blip pulses softly as aircraft state updates appear as minimal cyan ticks on the ring.",
+      "camera": "Orthographic, fixed top-down.",
+      "lighting": "Flat; no specular; pure UI render.",
+      "captions": [
+        "ST-01 Observer",
+        "Precision. Vigilance. Synthetic cognition."
+      ]
+    }
+  },
+  "assets": {
+    "exports": [
+      { "path": "public/brand/logo.svg", "source": "brand.logo_svg" },
+      { "path": "public/icons/app-icon-512.png", "from": "logo.svg", "rasterize": [512] },
+      { "path": "public/favicon-32.png", "from": "logo.svg", "rasterize": [32] }
+    ],
+    "css_tokens": {
+      "--st-bg": "#1A1B1D",
+      "--st-panel": "#0B0C0E",
+      "--st-text": "#F5F7FA",
+      "--st-muted": "#7A7C80",
+      "--st-accent": "#3BF4FB",
+      "--st-danger": "#FF4D4D",
+      "--st-border": "#2A2B2E"
+    }
+  },
+  "constraints": {
+    "forbidden": [
+      "Stock gradients",
+      "Glassmorphism",
+      "Drop shadows > 8px blur",
+      "Random animated backgrounds",
+      "Low-contrast text"
+    ],
+    "performance": [
+      "Avoid re-render thrash; batch WebSocket updates",
+      "Canvas only updates dirty regions",
+      "Prefer CSS transforms over top/left for motion"
+    ]
+  },
+  "copy_tone": {
+    "style": "Research-log. Declarative. No hype.",
+    "samples": {
+      "panel_header": "Decision Feed",
+      "metric_label": "Safety Violations / 1k steps",
+      "cta_primary": "Open Dashboard"
+    }
+  },
+  "sora_prompt": {
+    "text": "Top-down minimal UI scene of concentric radar rings on a graphite background. A cyan radar sweep rotates once every 3 seconds. A single cyan blip pulses gently every 240ms when it crosses the sweep. No gradients, no 3D lighting, no textures. Orthographic camera, fixed. Monochrome lines with cyan accent. Loop seamlessly in 10 seconds.",
+    "settings": {
+      "duration_s": 10,
+      "loop": true,
+      "easing": "linear sweep, ease-out pulse",
+      "background_color": "#1A1B1D",
+      "line_color": "#F5F7FA",
+      "accent_color": "#3BF4FB"
+    }
+  }
+}

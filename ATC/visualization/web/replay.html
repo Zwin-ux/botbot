@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATC Episode Replay</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            overflow: hidden;
+        }
+
+        .header {
+            background: #16213e;
+            padding: 15px 30px;
+            border-bottom: 2px solid #0f3460;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #e94560;
+        }
+
+        .main-container {
+            display: flex;
+            height: calc(100vh - 140px);
+        }
+
+        .viewer-panel {
+            flex: 1;
+            position: relative;
+            background: #0f3460;
+        }
+
+        #canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .timeline-panel {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(22, 33, 62, 0.95);
+            padding: 20px;
+            border-top: 2px solid #0f3460;
+        }
+
+        .playback-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        button {
+            background: #e94560;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+            min-width: 100px;
+        }
+
+        button:hover:not(:disabled) {
+            background: #c7354f;
+        }
+
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+
+        button.active {
+            background: #4caf50;
+        }
+
+        .speed-controls {
+            display: flex;
+            gap: 5px;
+        }
+
+        .speed-btn {
+            min-width: 50px;
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+
+        .timeline {
+            position: relative;
+            height: 40px;
+            background: #1a1a2e;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        .timeline-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #e94560, #ff6b81);
+            border-radius: 5px;
+            transition: width 0.1s;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            background: white;
+            border: 3px solid #e94560;
+            border-radius: 50%;
+            cursor: grab;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        .timeline-marker:active {
+            cursor: grabbing;
+        }
+
+        .timeline-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 5px;
+        }
+
+        .sidebar {
+            width: 350px;
+            background: #16213e;
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 2px solid #0f3460;
+        }
+
+        .episode-list {
+            margin-top: 20px;
+        }
+
+        .episode-item {
+            background: #1a1a2e;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            border-left: 4px solid #e94560;
+            transition: all 0.3s;
+        }
+
+        .episode-item:hover {
+            background: #252541;
+            transform: translateX(-5px);
+        }
+
+        .episode-item.selected {
+            background: #2d2d5a;
+            border-left-color: #4caf50;
+        }
+
+        .episode-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .episode-stats {
+            font-size: 12px;
+            color: #aaa;
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+        }
+
+        .metric-card {
+            background: #1a1a2e;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #e94560;
+        }
+
+        .metric-title {
+            font-size: 12px;
+            color: #aaa;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .section-title {
+            font-size: 16px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #0f3460;
+            color: #e94560;
+        }
+
+        .reward-chart {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            height: 200px;
+        }
+
+        #rewardCanvas {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📼 Episode Replay</h1>
+        <div id="episode-info">No episode loaded</div>
+    </div>
+
+    <div class="main-container">
+        <div class="viewer-panel">
+            <canvas id="canvas"></canvas>
+
+            <div class="timeline-panel">
+                <div class="playback-controls">
+                    <button id="play-pause">▶ Play</button>
+                    <button id="step-back">⏮ Step Back</button>
+                    <button id="step-forward">Step Forward ⏭</button>
+                    <button id="reset">↻ Reset</button>
+
+                    <div style="flex: 1;"></div>
+
+                    <div class="speed-controls">
+                        <span style="margin-right: 10px;">Speed:</span>
+                        <button class="speed-btn" data-speed="0.5">0.5x</button>
+                        <button class="speed-btn active" data-speed="1">1x</button>
+                        <button class="speed-btn" data-speed="2">2x</button>
+                        <button class="speed-btn" data-speed="5">5x</button>
+                    </div>
+                </div>
+
+                <div class="timeline" id="timeline">
+                    <div class="timeline-progress" id="progress"></div>
+                    <div class="timeline-marker" id="marker"></div>
+                </div>
+
+                <div class="timeline-info">
+                    <span id="current-step">Step: 0 / 0</span>
+                    <span id="current-time">Time: 0.0s / 0.0s</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="section-title">Episode Metrics</div>
+
+            <div class="metric-card">
+                <div class="metric-title">Total Reward</div>
+                <div class="metric-value" id="total-reward">—</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-title">Episode Length</div>
+                <div class="metric-value" id="episode-length">—</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-title">LoS Events</div>
+                <div class="metric-value" id="los-events">—</div>
+            </div>
+
+            <div class="reward-chart">
+                <canvas id="rewardCanvas"></canvas>
+            </div>
+
+            <div class="section-title">Recorded Episodes</div>
+
+            <div class="episode-list" id="episode-list">
+                <div style="text-align: center; color: #666; padding: 20px;">
+                    No episodes recorded yet
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="visualizer.js"></script>
+    <script src="replay.js"></script>
+</body>
+</html>

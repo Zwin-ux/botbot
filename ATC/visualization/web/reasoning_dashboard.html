@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Controller Automated Reasoning Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2rem;
+            font-weight: 600;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            margin-top: 0.5rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .card h2 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-excellent { background: #27ae60; }
+        .status-good { background: #f39c12; }
+        .status-concerning { background: #e67e22; }
+        .status-critical { background: #e74c3c; }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .metric-item {
+            text-align: center;
+            padding: 1rem;
+            background: rgba(52, 152, 219, 0.1);
+            border-radius: 10px;
+            border: 1px solid rgba(52, 152, 219, 0.2);
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #2980b9;
+            display: block;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            margin-top: 0.5rem;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 1rem 0;
+        }
+
+        .alert-item {
+            padding: 1rem;
+            margin: 0.5rem 0;
+            border-radius: 8px;
+            border-left: 4px solid;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .alert-critical {
+            border-left-color: #e74c3c;
+            background: rgba(231, 76, 60, 0.1);
+        }
+
+        .alert-warning {
+            border-left-color: #f39c12;
+            background: rgba(243, 156, 18, 0.1);
+        }
+
+        .alert-info {
+            border-left-color: #3498db;
+            background: rgba(52, 152, 219, 0.1);
+        }
+
+        .recommendation-item {
+            padding: 1rem;
+            margin: 0.5rem 0;
+            border-radius: 8px;
+            background: rgba(46, 204, 113, 0.1);
+            border-left: 4px solid #2ecc71;
+        }
+
+        .priority-high { border-left-color: #e74c3c; }
+        .priority-medium { border-left-color: #f39c12; }
+        .priority-low { border-left-color: #95a5a6; }
+
+        .pattern-item {
+            padding: 0.8rem;
+            margin: 0.5rem 0;
+            border-radius: 6px;
+            background: rgba(155, 89, 182, 0.1);
+            border: 1px solid rgba(155, 89, 182, 0.2);
+        }
+
+        .pattern-type {
+            font-weight: bold;
+            color: #8e44ad;
+        }
+
+        .pattern-severity {
+            float: right;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            color: white;
+        }
+
+        .severity-critical { background: #e74c3c; }
+        .severity-concerning { background: #e67e22; }
+        .severity-notable { background: #f39c12; }
+        .severity-benign { background: #95a5a6; }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            background: #3498db;
+            color: white;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .btn-success { background: #27ae60; }
+        .btn-success:hover { background: #229954; }
+
+        .btn-warning { background: #f39c12; }
+        .btn-warning:hover { background: #e67e22; }
+
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            color: white;
+            font-size: 0.9rem;
+            z-index: 1000;
+        }
+
+        .connected { background: #27ae60; }
+        .disconnected { background: #e74c3c; }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .timestamp {
+            font-size: 0.8rem;
+            color: #95a5a6;
+            margin-top: 0.5rem;
+        }
+
+        .executive-summary {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: #2c3e50;
+            background: rgba(52, 152, 219, 0.05);
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 1rem;
+        }
+
+        .key-findings {
+            list-style: none;
+        }
+
+        .key-findings li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .key-findings li:before {
+            content: "▶";
+            color: #3498db;
+            margin-right: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 1rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status" id="connectionStatus">
+        <span class="loading"></span> Connecting...
+    </div>
+
+    <div class="header">
+        <h1>🧠 AI Controller Automated Reasoning Dashboard</h1>
+        <p>Real-time analysis of AI controller performance, safety violations, and behavioral patterns</p>
+    </div>
+
+    <div class="container">
+        <div class="controls">
+            <button class="btn btn-success" onclick="generateReport()">📊 Generate Report</button>
+            <button class="btn btn-warning" onclick="analyzePatterns()">🔍 Analyze Patterns</button>
+            <button class="btn" onclick="refreshData()">🔄 Refresh Data</button>
+            <button class="btn" onclick="exportData()">💾 Export Data</button>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- Safety Overview -->
+            <div class="card">
+                <h2>
+                    <span class="status-indicator status-excellent" id="safetyStatus"></span>
+                    Safety Analysis
+                </h2>
+                <div class="metric-grid">
+                    <div class="metric-item">
+                        <span class="metric-value" id="safetyScore">95.2</span>
+                        <div class="metric-label">Safety Score</div>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-value" id="violationCount">3</span>
+                        <div class="metric-label">Violations (24h)</div>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-value" id="violationRate">0.12</span>
+                        <div class="metric-label">Rate/Hour</div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="safetyChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Performance Patterns -->
+            <div class="card">
+                <h2>🔄 Performance Patterns</h2>
+                <div class="metric-grid">
+                    <div class="metric-item">
+                        <span class="metric-value" id="patternCount">7</span>
+                        <div class="metric-label">Active Patterns</div>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-value" id="anomalyCount">2</span>
+                        <div class="metric-label">Anomalies</div>
+                    </div>
+                </div>
+                <div id="patternsList">
+                    <!-- Patterns will be populated here -->
+                </div>
+            </div>
+
+            <!-- Active Alerts -->
+            <div class="card">
+                <h2>🚨 Active Alerts</h2>
+                <div id="alertsList">
+                    <!-- Alerts will be populated here -->
+                </div>
+            </div>
+
+            <!-- Recommendations -->
+            <div class="card">
+                <h2>💡 Recommendations</h2>
+                <div id="recommendationsList">
+                    <!-- Recommendations will be populated here -->
+                </div>
+            </div>
+
+            <!-- Performance Trends -->
+            <div class="card full-width">
+                <h2>📈 Performance Trends</h2>
+                <div class="chart-container">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Latest Report -->
+            <div class="card full-width">
+                <h2>📋 Latest Analysis Report</h2>
+                <div class="executive-summary" id="executiveSummary">
+                    Loading latest analysis report...
+                </div>
+                <div>
+                    <h3>Key Findings:</h3>
+                    <ul class="key-findings" id="keyFindings">
+                        <!-- Key findings will be populated here -->
+                    </ul>
+                </div>
+                <div class="timestamp" id="reportTimestamp">
+                    Last updated: --
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let ws = null;
+        let safetyChart = null;
+        let performanceChart = null;
+        let isConnected = false;
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+            connectWebSocket();
+            loadInitialData();
+        });
+
+        // WebSocket connection
+        function connectWebSocket() {
+            try {
+                ws = new WebSocket('ws://localhost:8765');
+                
+                ws.onopen = function() {
+                    isConnected = true;
+                    updateConnectionStatus('connected');
+                    console.log('Connected to reasoning engine');
+                };
+
+                ws.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    handleWebSocketMessage(data);
+                };
+
+                ws.onclose = function() {
+                    isConnected = false;
+                    updateConnectionStatus('disconnected');
+                    console.log('Disconnected from reasoning engine');
+                    // Attempt to reconnect after 5 seconds
+                    setTimeout(connectWebSocket, 5000);
+                };
+
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    updateConnectionStatus('disconnected');
+                };
+            } catch (error) {
+                console.error('Failed to connect WebSocket:', error);
+                updateConnectionStatus('disconnected');
+                // Load demo data if WebSocket fails
+                loadDemoData();
+            }
+        }
+
+        function updateConnectionStatus(status) {
+            const statusElement = document.getElementById('connectionStatus');
+            if (status === 'connected') {
+                statusElement.innerHTML = '🟢 Connected';
+                statusElement.className = 'connection-status connected';
+            } else {
+                statusElement.innerHTML = '🔴 Disconnected';
+                statusElement.className = 'connection-status disconnected';
+            }
+        }
+
+        function handleWebSocketMessage(data) {
+            switch (data.type) {
+                case 'safety_metrics':
+                    updateSafetyMetrics(data.data);
+                    break;
+                case 'patterns':
+                    updatePatterns(data.data);
+                    break;
+                case 'alerts':
+                    updateAlerts(data.data);
+                    break;
+                case 'recommendations':
+                    updateRecommendations(data.data);
+                    break;
+                case 'report':
+                    updateReport(data.data);
+                    break;
+                case 'performance_data':
+                    updatePerformanceChart(data.data);
+                    break;
+            }
+        }
+
+        // Initialize charts
+        function initializeCharts() {
+            // Safety Chart
+            const safetyCtx = document.getElementById('safetyChart').getContext('2d');
+            safetyChart = new Chart(safetyCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Safety Score',
+                        data: [],
+                        borderColor: '#27ae60',
+                        backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: 'Violations',
+                        data: [],
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        yAxisID: 'y1',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: { display: true, text: 'Safety Score' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: { display: true, text: 'Violations' },
+                            grid: { drawOnChartArea: false }
+                        }
+                    }
+                }
+            });
+
+            // Performance Chart
+            const perfCtx = document.getElementById('performanceChart').getContext('2d');
+            performanceChart = new Chart(perfCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Reward',
+                        data: [],
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: 'Confidence',
+                        data: [],
+                        borderColor: '#9b59b6',
+                        backgroundColor: 'rgba(155, 89, 182, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Performance Metrics' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Load initial demo data
+        function loadInitialData() {
+            if (!isConnected) {
+                loadDemoData();
+            }
+        }
+
+        function loadDemoData() {
+            // Demo safety metrics
+            updateSafetyMetrics({
+                safety_score: 95.2,
+                total_violations: 3,
+                violation_rate_per_hour: 0.12,
+                trend: 'improving'
+            });
+
+            // Demo patterns
+            updatePatterns([
+                {
+                    pattern_type: 'oscillation',
+                    severity: 'concerning',
+                    description: 'Oscillatory behavior detected in reward performance',
+                    confidence_score: 0.85
+                },
+                {
+                    pattern_type: 'improvement',
+                    severity: 'benign',
+                    description: 'Consistent improvement in decision confidence',
+                    confidence_score: 0.92
+                }
+            ]);
+
+            // Demo alerts
+            updateAlerts([
+                {
+                    alert_level: 'warning',
+                    title: 'Performance Oscillation',
+                    description: 'Detected oscillatory behavior in reward performance over last 50 episodes'
+                }
+            ]);
+
+            // Demo recommendations
+            updateRecommendations([
+                {
+                    title: 'Reduce Learning Rate',
+                    description: 'Consider reducing learning rate to minimize oscillations',
+                    priority: 'medium',
+                    category: 'training'
+                },
+                {
+                    title: 'Implement Experience Replay',
+                    description: 'Add experience replay buffer to smooth learning',
+                    priority: 'high',
+                    category: 'performance'
+                }
+            ]);
+
+            // Demo report
+            updateReport({
+                executive_summary: 'Overall system performance is good with a safety score of 95.2/100. Detected some oscillatory patterns that require attention but no critical issues.',
+                key_findings: [
+                    'Safety performance exceeds target threshold',
+                    'Reward performance showing improvement trend',
+                    'Some oscillatory behavior detected in recent episodes',
+                    'Decision confidence is stable and high'
+                ],
+                overall_assessment: 'good',
+                timestamp: Date.now() / 1000
+            });
+
+            // Generate demo chart data
+            generateDemoChartData();
+        }
+
+        function generateDemoChartData() {
+            const hours = [];
+            const safetyScores = [];
+            const violations = [];
+            const rewards = [];
+            const confidence = [];
+
+            for (let i = 23; i >= 0; i--) {
+                hours.push(`${i}h ago`);
+                safetyScores.push(90 + Math.random() * 10);
+                violations.push(Math.floor(Math.random() * 3));
+                rewards.push(15 + Math.random() * 5);
+                confidence.push(0.7 + Math.random() * 0.3);
+            }
+
+            safetyChart.data.labels = hours;
+            safetyChart.data.datasets[0].data = safetyScores;
+            safetyChart.data.datasets[1].data = violations;
+            safetyChart.update();
+
+            performanceChart.data.labels = hours;
+            performanceChart.data.datasets[0].data = rewards;
+            performanceChart.data.datasets[1].data = confidence;
+            performanceChart.update();
+        }
+
+        // Update functions
+        function updateSafetyMetrics(data) {
+            document.getElementById('safetyScore').textContent = data.safety_score.toFixed(1);
+            document.getElementById('violationCount').textContent = data.total_violations;
+            document.getElementById('violationRate').textContent = data.violation_rate_per_hour.toFixed(2);
+
+            // Update status indicator
+            const statusElement = document.getElementById('safetyStatus');
+            if (data.safety_score >= 90) {
+                statusElement.className = 'status-indicator status-excellent';
+            } else if (data.safety_score >= 80) {
+                statusElement.className = 'status-indicator status-good';
+            } else if (data.safety_score >= 70) {
+                statusElement.className = 'status-indicator status-concerning';
+            } else {
+                statusElement.className = 'status-indicator status-critical';
+            }
+        }
+
+        function updatePatterns(patterns) {
+            const container = document.getElementById('patternsList');
+            container.innerHTML = '';
+
+            document.getElementById('patternCount').textContent = patterns.length;
+            
+            const anomalies = patterns.filter(p => p.pattern_type === 'anomaly');
+            document.getElementById('anomalyCount').textContent = anomalies.length;
+
+            patterns.forEach(pattern => {
+                const item = document.createElement('div');
+                item.className = 'pattern-item';
+                item.innerHTML = `
+                    <div class="pattern-type">${pattern.pattern_type.toUpperCase()}</div>
+                    <span class="pattern-severity severity-${pattern.severity}">${pattern.severity}</span>
+                    <div>${pattern.description}</div>
+                    <small>Confidence: ${(pattern.confidence_score * 100).toFixed(1)}%</small>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function updateAlerts(alerts) {
+            const container = document.getElementById('alertsList');
+            container.innerHTML = '';
+
+            if (alerts.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #27ae60; padding: 2rem;">✅ No active alerts</div>';
+                return;
+            }
+
+            alerts.forEach(alert => {
+                const item = document.createElement('div');
+                item.className = `alert-item alert-${alert.alert_level}`;
+                item.innerHTML = `
+                    <strong>${alert.title}</strong>
+                    <div>${alert.description}</div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function updateRecommendations(recommendations) {
+            const container = document.getElementById('recommendationsList');
+            container.innerHTML = '';
+
+            recommendations.forEach(rec => {
+                const item = document.createElement('div');
+                item.className = `recommendation-item priority-${rec.priority}`;
+                item.innerHTML = `
+                    <strong>${rec.title}</strong>
+                    <span style="float: right; background: #3498db; color: white; padding: 0.2rem 0.5rem; border-radius: 10px; font-size: 0.8rem;">${rec.priority.toUpperCase()}</span>
+                    <div>${rec.description}</div>
+                    <small>Category: ${rec.category}</small>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function updateReport(report) {
+            document.getElementById('executiveSummary').textContent = report.executive_summary;
+            
+            const findingsContainer = document.getElementById('keyFindings');
+            findingsContainer.innerHTML = '';
+            
+            report.key_findings.forEach(finding => {
+                const li = document.createElement('li');
+                li.textContent = finding;
+                findingsContainer.appendChild(li);
+            });
+
+            const timestamp = new Date(report.timestamp * 1000);
+            document.getElementById('reportTimestamp').textContent = `Last updated: ${timestamp.toLocaleString()}`;
+        }
+
+        function updatePerformanceChart(data) {
+            if (performanceChart && data.labels && data.datasets) {
+                performanceChart.data.labels = data.labels;
+                performanceChart.data.datasets = data.datasets;
+                performanceChart.update();
+            }
+        }
+
+        // Control functions
+        function generateReport() {
+            if (isConnected && ws) {
+                ws.send(JSON.stringify({ action: 'generate_report' }));
+            } else {
+                alert('📊 Report generation requested (demo mode - would generate new analysis report)');
+            }
+        }
+
+        function analyzePatterns() {
+            if (isConnected && ws) {
+                ws.send(JSON.stringify({ action: 'analyze_patterns' }));
+            } else {
+                alert('🔍 Pattern analysis requested (demo mode - would analyze recent performance patterns)');
+            }
+        }
+
+        function refreshData() {
+            if (isConnected && ws) {
+                ws.send(JSON.stringify({ action: 'refresh_data' }));
+            } else {
+                // Refresh demo data
+                loadDemoData();
+            }
+        }
+
+        function exportData() {
+            // Create demo export data
+            const exportData = {
+                timestamp: new Date().toISOString(),
+                safety_metrics: {
+                    safety_score: parseFloat(document.getElementById('safetyScore').textContent),
+                    violations: parseInt(document.getElementById('violationCount').textContent),
+                    violation_rate: parseFloat(document.getElementById('violationRate').textContent)
+                },
+                patterns: document.getElementById('patternCount').textContent,
+                anomalies: document.getElementById('anomalyCount').textContent,
+                executive_summary: document.getElementById('executiveSummary').textContent
+            };
+
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `reasoning_analysis_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            if (isConnected) {
+                refreshData();
+            }
+        }, 30000);
+    </script>
+</body>
+</html>

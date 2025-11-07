@@ -1,0 +1,276 @@
+"""
+Thin wrapper over BlueSky simulator for ATC environment.
+
+This module provides a simplified interface to aircraft simulation for the
+SyntheticTowerEnv Gymnasium environment. The current implementation uses a
+deterministic kinematic model suitable for development and testing.
+
+For production deployment with full BlueSky integration:
+1. Import BlueSky modules
+2. Replace _spawn_traffic with scenario file parsing
+3. Replace step() physics with BlueSky.traf.update()
+4. Replace _snapshot with BlueSky state queries
+
+Interface contract (required by SyntheticTowerEnv):
+- reset() returns list of aircraft dicts with keys: id, x_nm, y_nm, v_kt,
+  hdg_rad, alt_ft, goal_x_nm, goal_y_nm, alive, intent_onehot
+- step(commands) accepts list of dicts with keys: id, delta_hdg, delta_vs
+- All positions in nautical miles, speeds in knots, headings in radians,
+  altitudes in feet MSL
+
+Units:
+- Distance: nautical miles (NM)
+- Speed: knots (kt)
+- Heading: radians [0, 2π)
+- Altitude: feet MSL (ft)
+- Vertical speed: feet per minute (ft/min)
+"""
+from typing import List, Dict, Any
+import numpy as np
+
+
+class BlueSkySim:
+    """
+    Thin wrapper over BlueSky. Replace stub methods with BlueSky API calls.
+    """
+
+    def __init__(
+        self,
+        scenario: str,
+        step_seconds: float = 5.0,
+        max_ac: int = 16,
+        seed: int = 0
+    ):
+        """
+        Initialize BlueSky simulator.
+
+        Args:
+            scenario: Path to scenario file
+            step_seconds: Simulation time step in seconds
+            max_ac: Maximum number of aircraft
+            seed: Random seed for reproducibility
+        """
+        self.dt = step_seconds
+        self.max_ac = max_ac
+        self.rng = np.random.default_rng(seed)
+        self.scenario = scenario
+        self._time = 0.0
+        self._aircraft: List[Dict[str, Any]] = []
+        self._next_id = 0
+        self._load_scenario(scenario)
+
+    def _load_scenario(self, scenario: str) -> None:
+        """
+        Load a BlueSky scenario.
+
+        For production, replace with actual BlueSky scenario loading:
+        bluesky.load_scenario(scenario)
+
+        Current implementation: stores scenario path for deterministic initialization.
+        """
+        self._time = 0.0
+        self._aircraft = []
+        self._next_id = 0
+
+    def reset(self) -> List[Dict[str, Any]]:
+        """
+        Reset simulation and return initial aircraft states.
+
+        Returns initial aircraft states as expected by SyntheticTowerEnv.
+        Each aircraft dict contains:
+        - id: Aircraft identifier (str)
+        - x_nm, y_nm: Position in nautical miles
+        - v_kt: Ground speed in knots
+        - hdg_rad: Heading in radians [0, 2π)
+        - alt_ft: Altitude in feet
+        - goal_x_nm, goal_y_nm: Target position in nautical miles
+        - alive: Boolean indicating if aircraft is active
+        - intent_onehot: 5-element one-hot encoded intent vector
+
+        For production, replace with BlueSky reset API.
+
+        Returns:
+            List of aircraft state dictionaries
+        """
+        self._time = 0.0
+        self._aircraft = self._spawn_traffic()
+        return self._snapshot()
+
+    def step(self, commands: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Apply commands and advance simulation by one time step.
+
+        Implements simple kinematic aircraft motion model with the following behavior:
+        1. Apply heading and vertical speed commands
+        2. Update aircraft positions based on velocity and heading
+        3. Check termination conditions (goal reached, out of bounds)
+        4. Advance simulation time
+
+        Physics model (deterministic stub):
+        - Heading changes are applied instantaneously
+        - Altitude changes based on vertical speed over timestep
+        - Position updates use ground speed and heading (flat earth approximation)
+        - No wind, drag, or other environmental effects
+
+        Args:
+            commands: List of command dicts with keys:
+                - id: Aircraft identifier (str)
+                - delta_hdg: Heading change in radians
+                - delta_vs: Vertical speed change in ft/min
+
+        Returns:
+            Updated list of aircraft states with same structure as reset()
+
+        For production, replace with BlueSky control APIs:
+        - bluesky.traf.ap.selhdg(acid, hdg)
+        - bluesky.traf.ap.selvs(acid, vs)
+        - bluesky.traf.update()
+        """
+        # Build command lookup map for efficient access
+        cmd_map = {cmd["id"]: cmd for cmd in commands}
+
+        for ac in self._aircraft:
+            # Skip dead aircraft
+            if not ac["alive"]:
+                continue
+
+            ac_id = ac["id"]
+
+            # Apply control commands if present
+            if ac_id in cmd_map:
+                cmd = cmd_map[ac_id]
+
+                # Apply heading change (delta applied to current heading)
+                if "delta_hdg" in cmd:
+                    ac["hdg_rad"] = (ac["hdg_rad"] + cmd["delta_hdg"]) % (2 * np.pi)
+
+                # Apply vertical speed change (converts ft/min to ft over timestep)
+                if "delta_vs" in cmd:
+                    # Simple integration: alt += vs * dt
+                    # dt is in seconds, vs is in ft/min, so convert: ft/min * (sec/60)
+                    ac["alt_ft"] += cmd["delta_vs"] * (self.dt / 60.0)
+                    # Enforce altitude constraints
+                    ac["alt_ft"] = np.clip(ac["alt_ft"], 0.0, 45000.0)
+
+            # Update position based on ground speed and heading
+            # Velocity components in NM/hour (knots)
+            vx_kt = ac["v_kt"] * np.cos(ac["hdg_rad"])
+            vy_kt = ac["v_kt"] * np.sin(ac["hdg_rad"])
+
+            # Convert velocity to distance: NM = kt * (seconds / 3600)
+            ac["x_nm"] += vx_kt * (self.dt / 3600.0)
+            ac["y_nm"] += vy_kt * (self.dt / 3600.0)
+
+            # Check termination conditions
+
+            # 1. Aircraft reached goal (within 2 NM tolerance)
+            dist_to_goal = np.hypot(
+                ac["goal_x_nm"] - ac["x_nm"],
+                ac["goal_y_nm"] - ac["y_nm"]
+            )
+            if dist_to_goal < 2.0:
+                ac["alive"] = False
+                continue
+
+            # 2. Aircraft exited sector bounds (100x100 NM sector centered at origin)
+            if abs(ac["x_nm"]) > 100 or abs(ac["y_nm"]) > 100:
+                ac["alive"] = False
+                continue
+
+        # Advance simulation time
+        self._time += self.dt
+
+        return self._snapshot()
+
+    def _snapshot(self) -> List[Dict[str, Any]]:
+        """
+        Return current state of all aircraft.
+
+        Returns a deep copy of aircraft states to prevent external modification.
+
+        Each state dict contains:
+        - id (str): Aircraft identifier
+        - x_nm (float): X position in nautical miles
+        - y_nm (float): Y position in nautical miles
+        - v_kt (float): Ground speed in knots
+        - hdg_rad (float): Heading in radians [0, 2π)
+        - alt_ft (float): Altitude in feet MSL
+        - goal_x_nm (float): Goal X position in nautical miles
+        - goal_y_nm (float): Goal Y position in nautical miles
+        - alive (bool): Aircraft active status
+        - intent_onehot (np.ndarray): 5-element intent classification vector
+
+        For production, replace with BlueSky state queries:
+        - bluesky.traf.id for aircraft IDs
+        - bluesky.traf.lat, bluesky.traf.lon for positions (convert to local NM)
+        - bluesky.traf.hdg, bluesky.traf.alt, bluesky.traf.gs
+
+        Returns:
+            List of aircraft state dictionaries
+        """
+        return [ac.copy() for ac in self._aircraft]
+
+    def _spawn_traffic(self) -> List[Dict[str, Any]]:
+        """
+        Create initial aircraft for the scenario.
+
+        Generates a deterministic crossing pattern scenario with 4 aircraft.
+        Aircraft are positioned symmetrically around the sector center,
+        each heading toward the opposite side.
+
+        Scenario characteristics:
+        - 4 aircraft in crossing pattern (90° separation)
+        - Starting positions: 40 NM from center
+        - Goal positions: opposite side of sector
+        - Altitudes: 10,000 ft, 11,000 ft, 12,000 ft, 13,000 ft
+        - Speeds: 250 kt ± small random variation (for realism)
+        - All aircraft classified as "enroute"
+
+        For production, replace with actual scenario spawning via BlueSky:
+        - Parse .scn scenario file
+        - Create aircraft with BlueSky commands
+        - Load waypoints and flight plans
+
+        Returns:
+            List of initial aircraft state dictionaries
+        """
+        # Deterministic crossing scenario: 4 aircraft
+        num_ac = 4
+        aircraft = []
+
+        for i in range(num_ac):
+            # Distribute aircraft around circle
+            angle = (i / num_ac) * 2 * np.pi
+            start_dist = 40.0  # Start 40 NM from center
+
+            # Calculate start position (cartesian coordinates)
+            x_start = start_dist * np.cos(angle)
+            y_start = start_dist * np.sin(angle)
+
+            # Goal position: opposite side of sector
+            x_goal = -x_start
+            y_goal = -y_start
+
+            # Calculate initial heading toward goal
+            hdg = np.arctan2(y_goal - y_start, x_goal - x_start)
+
+            # Add small speed variation for realism (deterministic via seeded RNG)
+            speed_variation = self.rng.normal(0, 20)
+
+            # Create aircraft state dict
+            ac = {
+                "id": f"AC{self._next_id:03d}",
+                "x_nm": x_start,
+                "y_nm": y_start,
+                "v_kt": 250.0 + speed_variation,
+                "hdg_rad": hdg,
+                "alt_ft": 10000.0 + i * 1000.0,  # Vertical separation
+                "goal_x_nm": x_goal,
+                "goal_y_nm": y_goal,
+                "alive": True,
+                "intent_onehot": np.array([0, 0, 0, 1, 0], dtype=np.float32),  # enroute
+            }
+            aircraft.append(ac)
+            self._next_id += 1
+
+        return aircraft

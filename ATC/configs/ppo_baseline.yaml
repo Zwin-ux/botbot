@@ -1,0 +1,45 @@
+# PPO baseline configuration for ATC training
+# Mirrors hyperparameters in train/train_rllib.py
+
+environment:
+  name: SyntheticTowerEnv
+  scenario: scenarios/straight_4.scn
+  step_seconds: 5.0
+  seed: 0
+  horizon: 400
+
+framework:
+  type: torch
+
+rollout:
+  num_rollout_workers: 7  # CPU count - 1
+  rollout_fragment_length: 128
+
+training:
+  gamma: 0.995           # Discount factor (long horizon)
+  lr: 3.0e-4            # Learning rate
+  kl_coeff: 0.2         # KL divergence coefficient
+  train_batch_size: 32768
+  sgd_minibatch_size: 2048
+  num_sgd_iter: 8
+  vf_clip_param: 10.0   # Value function clipping
+  clip_param: 0.2       # PPO clip parameter
+  entropy_coeff: 0.01   # Entropy bonus
+  use_gae: true
+  lambda_: 0.95         # GAE lambda
+
+resources:
+  num_gpus: 0
+  num_cpus_per_worker: 1
+
+evaluation:
+  evaluation_interval: 10
+  evaluation_duration: 10
+  evaluation_num_workers: 1
+
+checkpointing:
+  checkpoint_freq: 10
+  checkpoint_dir: ./checkpoints
+
+logging:
+  log_level: INFO

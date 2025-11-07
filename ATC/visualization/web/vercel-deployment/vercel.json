@@ -1,0 +1,61 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "env": {
+    "NEXT_PUBLIC_ENABLE_MOCK_DATA": "true"
+  },
+  "functions": {
+    "src/app/api/**/*.ts": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/stream",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-transform"
+        },
+        {
+          "key": "Content-Type",
+          "value": "text/event-stream"
+        },
+        {
+          "key": "Connection",
+          "value": "keep-alive"
+        },
+        {
+          "key": "X-Accel-Buffering",
+          "value": "no"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/python/:path*",
+      "destination": "http://localhost:8765/:path*"
+    }
+  ]
+}

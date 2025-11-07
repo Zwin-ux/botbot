@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Echo Tower Alpha-01 | Virtual ATC Environment</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #00ff00;
+            min-height: 100vh;
+            overflow-x: auto;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 1rem 2rem;
+            border-bottom: 2px solid #00ff00;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #00ff00;
+            font-size: 1.8rem;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 2rem;
+            font-size: 0.9rem;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #00ff00;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 2rem;
+            padding: 2rem;
+            height: calc(100vh - 80px);
+        }
+
+        .grid-container {
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .grid-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #00ff00;
+        }
+
+        .grid-display {
+            font-family: 'Courier New', monospace;
+            font-size: 1.2rem;
+            line-height: 1.4;
+            background: #000;
+            padding: 1rem;
+            border-radius: 5px;
+            border: 1px solid #333;
+            overflow: auto;
+            flex: 1;
+            white-space: pre;
+        }
+
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .panel-section {
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            padding: 1rem;
+        }
+
+        .panel-section h3 {
+            color: #00ff00;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+            text-shadow: 0 0 5px #00ff00;
+        }
+
+        .aircraft-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .aircraft-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.3rem 0;
+            border-bottom: 1px solid #333;
+            font-size: 0.9rem;
+        }
+
+        .aircraft-callsign {
+            font-weight: bold;
+            color: #ffff00;
+        }
+
+        .aircraft-status {
+            color: #00ffff;
+        }
+
+        .priority-1 { color: #ff0000; }
+        .priority-2 { color: #ff8800; }
+        .priority-3 { color: #ffff00; }
+        .priority-4 { color: #00ff00; }
+        .priority-5 { color: #888888; }
+
+        .weather-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.3rem 0;
+            border-bottom: 1px solid #333;
+            font-size: 0.9rem;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            cursor: pointer;
+            border-radius: 5px;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #00ff00;
+            color: #000;
+            box-shadow: 0 0 10px #00ff00;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .metric-item {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .metric-value {
+            color: #ffff00;
+            font-weight: bold;
+        }
+
+        .comms-log {
+            max-height: 150px;
+            overflow-y: auto;
+            background: #000;
+            padding: 0.5rem;
+            border-radius: 5px;
+            border: 1px solid #333;
+            font-size: 0.8rem;
+        }
+
+        .comms-message {
+            margin-bottom: 0.3rem;
+            color: #00ffff;
+        }
+
+        .comms-timestamp {
+            color: #888;
+            margin-right: 0.5rem;
+        }
+
+        .legend {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            margin-top: 1rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 0.5rem 1rem;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            z-index: 1000;
+        }
+
+        .connected { border-color: #00ff00; color: #00ff00; }
+        .disconnected { border-color: #ff0000; color: #ff0000; }
+
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+            }
+            
+            .control-panel {
+                flex-direction: row;
+                overflow-x: auto;
+            }
+            
+            .panel-section {
+                min-width: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status" id="connectionStatus">
+        🔴 Disconnected
+    </div>
+
+    <div class="header">
+        <h1>🏢 Echo Tower Alpha-01 | Virtual ATC Environment</h1>
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-indicator"></div>
+                <span>AI Core Active</span>
+            </div>
+            <div class="status-item">
+                <div class="status-indicator"></div>
+                <span>Radar Online</span>
+            </div>
+            <div class="status-item">
+                <div class="status-indicator"></div>
+                <span>Weather System</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="grid-container">
+            <div class="grid-header">
+                <h2>🛰️ Tactical Display</h2>
+                <div>
+                    <span>Time: <span id="simTime">0.0</span>s</span>
+                    <span style="margin-left: 2rem;">Grid: 20x15</span>
+                </div>
+            </div>
+            <div class="grid-display" id="gridDisplay">
+                Loading tactical display...
+            </div>
+            <div class="legend">
+                <div class="legend-item">🏢 Tower</div>
+                <div class="legend-item">🧠 AI Core</div>
+                <div class="legend-item">🛰️ Radar</div>
+                <div class="legend-item">🛩️ Hangar</div>
+                <div class="legend-item">⛽ Refuel</div>
+                <div class="legend-item">🛫 Runway</div>
+                <div class="legend-item">✈️ Aircraft</div>
+                <div class="legend-item">🛬 Landing</div>
+                <div class="legend-item">🚁 Medevac</div>
+                <div class="legend-item">🌩️ Weather</div>
+                <div class="legend-item">🚨 Emergency</div>
+                <div class="legend-item">💨 Crosswind</div>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <div class="panel-section">
+                <h3>🎮 Mission Control</h3>
+                <div class="controls">
+                    <button class="btn" onclick="startSimulation()">▶️ Start Simulation</button>
+                    <button class="btn" onclick="pauseSimulation()">⏸️ Pause</button>
+                    <button class="btn" onclick="spawnAircraft()">✈️ Spawn Aircraft</button>
+                    <button class="btn" onclick="generateWeather()">🌩️ Generate Weather</button>
+                    <button class="btn" onclick="emergencyScenario()">🚨 Emergency Scenario</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3>✈️ Active Aircraft</h3>
+                <div class="aircraft-list" id="aircraftList">
+                    <!-- Aircraft will be populated here -->
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3>🌩️ Weather Conditions</h3>
+                <div id="weatherList">
+                    <div class="weather-item">
+                        <span>☀️ Clear</span>
+                        <span>Visibility: 10+ NM</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3>📊 Metrics</h3>
+                <div class="metrics">
+                    <div class="metric-item">
+                        <span>Operations:</span>
+                        <span class="metric-value" id="totalOps">0</span>
+                    </div>
+                    <div class="metric-item">
+                        <span>Violations:</span>
+                        <span class="metric-value" id="violations">0</span>
+                    </div>
+                    <div class="metric-item">
+                        <span>Avg Delay:</span>
+                        <span class="metric-value" id="avgDelay">0.0s</span>
+                    </div>
+                    <div class="metric-item">
+                        <span>Efficiency:</span>
+                        <span class="metric-value" id="efficiency">100%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3>📻 Communications Log</h3>
+                <div class="comms-log" id="commsLog">
+                    <div class="comms-message">
+                        <span class="comms-timestamp">[00:00]</span>
+                        Echo Tower Alpha-01 operational
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let ws = null;
+        let isConnected = false;
+        let simulationRunning = false;
+        let environmentData = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            connectWebSocket();
+            loadDemoData();
+        });
+
+        // WebSocket connection
+        function connectWebSocket() {
+            try {
+                ws = new WebSocket('ws://localhost:8767'); // Different port for ATC
+                
+                ws.onopen = function() {
+                    isConnected = true;
+                    updateConnectionStatus(true);
+                    console.log('Connected to Echo Tower Alpha-01');
+                };
+
+                ws.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    handleWebSocketMessage(data);
+                };
+
+                ws.onclose = function() {
+                    isConnected = false;
+                    updateConnectionStatus(false);
+                    console.log('Disconnected from Echo Tower Alpha-01');
+                    setTimeout(connectWebSocket, 5000);
+                };
+
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    updateConnectionStatus(false);
+                };
+            } catch (error) {
+                console.error('Failed to connect WebSocket:', error);
+                updateConnectionStatus(false);
+            }
+        }
+
+        function updateConnectionStatus(connected) {
+            const statusElement = document.getElementById('connectionStatus');
+            if (connected) {
+                statusElement.innerHTML = '🟢 Connected';
+                statusElement.className = 'connection-status connected';
+            } else {
+                statusElement.innerHTML = '🔴 Disconnected';
+                statusElement.className = 'connection-status disconnected';
+            }
+        }
+
+        function handleWebSocketMessage(data) {
+            switch (data.type) {
+                case 'environment_update':
+                    updateEnvironment(data.data);
+                    break;
+                case 'aircraft_update':
+                    updateAircraftList(data.data);
+                    break;
+                case 'weather_update':
+                    updateWeatherList(data.data);
+                    break;
+                case 'comms_message':
+                    addCommsMessage(data.data);
+                    break;
+                case 'metrics_update':
+                    updateMetrics(data.data);
+                    break;
+            }
+        }
+
+        // Demo data for offline mode
+        function loadDemoData() {
+            const demoGrid = `Echo Tower Alpha-01 🏢
+======================
+|                    |
+|                    |
+|   🛩️              |
+|                    |
+|                    |
+|                    |
+|     🧠🏢🛰️        |
+|                    |
+|                    |
+|              ⛽    |
+|                    |
+|  ✈️                |
+|                    |
+|        🛬          |
+|                    |
+======================
+Time: 45.3s | Aircraft: 4 | Weather: 1
+Operations: 12 | Violations: 0`;
+
+            document.getElementById('gridDisplay').textContent = demoGrid;
+            
+            // Demo aircraft
+            updateAircraftList([
+                {
+                    callsign: 'MEDEVAC01',
+                    aircraft_type: 'medevac',
+                    status: 'inbound',
+                    priority: 1,
+                    fuel_level: 0.8,
+                    emoji: '🚁'
+                },
+                {
+                    callsign: 'SUPPLY07',
+                    aircraft_type: 'supply',
+                    status: 'landing',
+                    priority: 2,
+                    fuel_level: 0.6,
+                    emoji: '🛬'
+                },
+                {
+                    callsign: 'RECON03',
+                    aircraft_type: 'recon',
+                    status: 'taxiing',
+                    priority: 3,
+                    fuel_level: 0.9,
+                    emoji: '✈️'
+                },
+                {
+                    callsign: 'PATROL12',
+                    aircraft_type: 'patrol',
+                    status: 'outbound',
+                    priority: 4,
+                    fuel_level: 0.7,
+                    emoji: '🛫'
+                }
+            ]);
+
+            // Demo weather
+            updateWeatherList([
+                {
+                    condition: 'crosswind',
+                    intensity: 0.6,
+                    position: [8, 12],
+                    emoji: '💨'
+                }
+            ]);
+
+            // Demo metrics
+            updateMetrics({
+                total_operations: 12,
+                safety_violations: 0,
+                average_delay: 2.3,
+                fuel_efficiency: 0.95
+            });
+
+            // Start demo updates
+            setInterval(updateDemoData, 3000);
+        }
+
+        function updateDemoData() {
+            if (!isConnected) {
+                // Simulate time progression
+                const timeElement = document.getElementById('simTime');
+                const currentTime = parseFloat(timeElement.textContent) + 3.0;
+                timeElement.textContent = currentTime.toFixed(1);
+
+                // Add random comms messages
+                if (Math.random() < 0.3) {
+                    const messages = [
+                        'Tower to MEDEVAC01, cleared to land runway 01',
+                        'SUPPLY07, contact ground on 121.9',
+                        'RECON03, taxi to runway 02 via taxiway Alpha',
+                        'Weather update: crosswind 15 knots from 270',
+                        'PATROL12, cleared for takeoff runway 02'
+                    ];
+                    addCommsMessage(messages[Math.floor(Math.random() * messages.length)]);
+                }
+            }
+        }
+
+        // Update functions
+        function updateEnvironment(data) {
+            environmentData = data;
+            
+            // Update grid display
+            if (data.grid_string) {
+                document.getElementById('gridDisplay').textContent = data.grid_string;
+            }
+            
+            // Update simulation time
+            document.getElementById('simTime').textContent = data.simulation_time.toFixed(1);
+        }
+
+        function updateAircraftList(aircraft) {
+            const container = document.getElementById('aircraftList');
+            container.innerHTML = '';
+
+            aircraft.forEach(ac => {
+                const item = document.createElement('div');
+                item.className = 'aircraft-item';
+                item.innerHTML = `
+                    <div>
+                        <span class="aircraft-callsign priority-${ac.priority}">${ac.emoji} ${ac.callsign}</span>
+                        <div class="aircraft-status">${ac.status.toUpperCase()}</div>
+                    </div>
+                    <div>
+                        <div>Fuel: ${(ac.fuel_level * 100).toFixed(0)}%</div>
+                        <div>Type: ${ac.aircraft_type}</div>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function updateWeatherList(weather) {
+            const container = document.getElementById('weatherList');
+            container.innerHTML = '';
+
+            if (weather.length === 0) {
+                container.innerHTML = `
+                    <div class="weather-item">
+                        <span>☀️ Clear</span>
+                        <span>Visibility: 10+ NM</span>
+                    </div>
+                `;
+                return;
+            }
+
+            weather.forEach(w => {
+                const item = document.createElement('div');
+                item.className = 'weather-item';
+                item.innerHTML = `
+                    <span>${w.emoji} ${w.condition.toUpperCase()}</span>
+                    <span>Intensity: ${(w.intensity * 100).toFixed(0)}%</span>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function updateMetrics(metrics) {
+            document.getElementById('totalOps').textContent = metrics.total_operations;
+            document.getElementById('violations').textContent = metrics.safety_violations;
+            document.getElementById('avgDelay').textContent = metrics.average_delay.toFixed(1) + 's';
+            document.getElementById('efficiency').textContent = (metrics.fuel_efficiency * 100).toFixed(0) + '%';
+        }
+
+        function addCommsMessage(message) {
+            const container = document.getElementById('commsLog');
+            const timestamp = new Date().toLocaleTimeString('en-US', { 
+                hour12: false, 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'comms-message';
+            messageDiv.innerHTML = `
+                <span class="comms-timestamp">[${timestamp}]</span>
+                ${message}
+            `;
+            
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+
+            // Keep only last 20 messages
+            while (container.children.length > 20) {
+                container.removeChild(container.firstChild);
+            }
+        }
+
+        // Control functions
+        function startSimulation() {
+            if (isConnected && ws) {
+                ws.send(JSON.stringify({ action: 'start_simulation' }));
+            } else {
+                simulationRunning = true;
+                addCommsMessage('Simulation started (demo mode)');
+            }
+        }
+
+        function pauseSimulation() {
+            if (isConnected && ws) {
+                ws.send(JSON.stringify({ action: 'pause_simulation' }));
+            } else {
+                simulationRunning = false;
+                addCommsMessage('Simulation paused (demo mode)');
+            }
+        }
+
+        function spawnAircraft() {
+            if (isConnected && ws) {
+                ws.send(JSON.stringify({ action: 'spawn_aircraft' }));
+            } else {
+                const types = ['medevac', 'supply', 'recon', 'patrol', 'civilian'];
+                const type = types[Math.floor(Math.random() * types.length)];
+                const callsign = `${type.toUpperCase()}${Math.floor(Math.random() * 90) + 10}`;
+                addCommsMessage(`New aircraft spawned: ${callsign}`);
+            }
+        }
+
+        function generateWeather() {
+            if (isConnected && ws) {
+                ws.send(JSON.stringify({ action: 'generate_weather' }));
+            } else {
+                const conditions = ['crosswind', 'turbulence', 'low_visibility', 'storm'];
+                const condition = conditions[Math.floor(Math.random() * conditions.length)];
+                addCommsMessage(`Weather update: ${condition} conditions detected`);
+            }
+        }
+
+        function emergencyScenario() {
+            if (isConnected && ws) {
+                ws.send(JSON.stringify({ action: 'emergency_scenario' }));
+            } else {
+                addCommsMessage('🚨 EMERGENCY: MEDEVAC01 declaring fuel emergency');
+                addCommsMessage('All traffic cleared, priority landing authorized');
+            }
+        }
+    </script>
+</body>
+</html>

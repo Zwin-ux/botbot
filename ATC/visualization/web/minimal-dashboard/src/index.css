@@ -1,0 +1,249 @@
+/* ST-01 Observer Design System - Truth over aesthetics */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* ST-01 Color Palette */
+  --st-bg: #1A1B1D;           /* Graphite */
+  --st-panel: #0B0C0E;        /* Carbon Black */
+  --st-text: #F5F7FA;         /* White */
+  --st-muted: #7A7C80;        /* Neutral Gray */
+  --st-accent: #3BF4FB;       /* Radar Cyan */
+  --st-danger: #FF4D4D;       /* Alert Red */
+  --st-border: #2A2B2E;       /* Subtle border */
+  
+  /* Legacy aliases for compatibility */
+  --bg: var(--st-bg);
+  --surface: var(--st-panel);
+  --border: var(--st-border);
+  --text: var(--st-text);
+  --text-dim: var(--st-muted);
+  --accent: var(--st-accent);
+  --warning: #FFAA00;
+  --error: var(--st-danger);
+  --success: var(--st-accent);
+}
+
+body {
+  font-family: 'Inter Tight', 'Inter', ui-sans-serif, system-ui, -apple-system, 
+    BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--st-bg);
+  color: var(--st-text);
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+code, pre {
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', 'SFMono-Regular', 
+    'Menlo', 'Consolas', 'Courier New', monospace;
+  font-size: 0.9em;
+  letter-spacing: -0.02em;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Utility classes */
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.card {
+  background: var(--st-panel);
+  border: 1px solid var(--st-border);
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+}
+
+.status-dot.connected { background: var(--success); }
+.status-dot.disconnected { background: var(--error); }
+.status-dot.connecting { background: var(--warning); }
+
+.metric {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.metric:last-child {
+  border-bottom: none;
+}
+
+.metric-label {
+  color: var(--text-dim);
+  font-size: 0.9em;
+}
+
+.metric-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.log-entry {
+  font-family: 'SF Mono', monospace;
+  font-size: 0.85em;
+  padding: 0.25rem 0.5rem;
+  border-left: 2px solid var(--border);
+  margin: 0.25rem 0;
+}
+
+.log-entry.error { border-left-color: var(--error); }
+.log-entry.warning { border-left-color: var(--warning); }
+.log-entry.info { border-left-color: var(--accent); }
+
+.timestamp {
+  color: var(--text-dim);
+  margin-right: 0.5rem;
+}
+
+button {
+  background: transparent;
+  border: 1px solid var(--st-border);
+  color: var(--st-text);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  transition: all 0.15s ease-out;
+}
+
+button:hover {
+  border-color: var(--st-accent);
+  background: var(--st-panel);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+button.primary {
+  background: var(--st-accent);
+  color: var(--st-panel);
+  border-color: var(--st-accent);
+}
+
+button.primary:hover {
+  background: #2DE4EB;
+  border-color: #2DE4EB;
+}
+
+:focus-visible {
+  outline: 2px solid var(--st-accent);
+  outline-offset: 2px;
+}
+
+.nav {
+  display: flex;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--st-border);
+  background: var(--st-panel);
+}
+
+.nav a {
+  color: var(--st-muted);
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: all 0.15s ease-out;
+  font-weight: 500;
+  font-size: 0.9em;
+  letter-spacing: -0.01em;
+}
+
+.nav a:hover {
+  color: var(--st-text);
+  background: var(--st-bg);
+}
+
+.nav a.active {
+  color: var(--st-accent);
+  background: var(--st-bg);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+th, td {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  color: var(--text-dim);
+  font-weight: 600;
+  font-size: 0.85em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.header {
+  padding: 2rem 1rem 1rem;
+  border-bottom: 1px solid var(--st-border);
+}
+
+.header h1 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  letter-spacing: -0.02em;
+}
+
+.header p {
+  color: var(--st-muted);
+  font-size: 0.95em;
+  letter-spacing: -0.01em;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.75em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge.success { background: rgba(0, 255, 136, 0.1); color: var(--success); }
+.badge.error { background: rgba(255, 68, 68, 0.1); color: var(--error); }
+.badge.warning { background: rgba(255, 170, 0, 0.1); color: var(--warning); }
+.badge.info { background: rgba(100, 100, 100, 0.1); color: var(--text-dim); }
