@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  llm-proxy:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.llm-proxy
+    container_name: ae-llm-proxy
+    ports:
+      - "8787:8787"
+    environment:
+      - AE_LLM_API_KEY=${AE_LLM_API_KEY}
+      - AE_LLM_MODEL=${AE_LLM_MODEL:-gpt-4o-mini}
+      - AE_LLM_TEMPERATURE=${AE_LLM_TEMPERATURE:-0.2}
+      - AE_LLM_MAX_OUTPUT_TOKENS=${AE_LLM_MAX_OUTPUT_TOKENS:-800}
+      - AE_HMAC_SECRET=${AE_HMAC_SECRET}
+      - PORT=8787
+    networks:
+      - encounters-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8787/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  engine:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.engine
+    container_name: ae-engine
+    ports:
+      - "8786:8786"
+    environment:
+      - AE_HMAC_SECRET=${AE_HMAC_SECRET}
+      - LLM_PROXY_URL=http://llm-proxy:8787
+      - PORT=8786
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      llm-proxy:
+        condition: service_healthy
+    networks:
+      - encounters-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8786/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  web-next:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    container_name: ae-web-next
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_ENGINE_URL=http://engine:8786
+      - NODE_ENV=production
+    depends_on:
+      engine:
+        condition: service_healthy
+    networks:
+      - encounters-net
+    restart: unless-stopped
+
+  gmod-sidecar:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gmod
+    container_name: ae-gmod-sidecar
+    ports:
+      - "8788:8788"
+    environment:
+      - ENGINE_URL=http://engine:8786
+      - GMOD_SIDECAR_PORT=8788
+    depends_on:
+      engine:
+        condition: service_healthy
+    networks:
+      - encounters-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8788/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+networks:
+  encounters-net:
+    driver: bridge
+    name: encounters-net
+
+volumes:
+  data:
+    driver: local

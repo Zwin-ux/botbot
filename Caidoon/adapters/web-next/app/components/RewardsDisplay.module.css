@@ -1,0 +1,58 @@
+.container {
+  background: #1a1a1a;
+  border-radius: 8px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  border: 1px solid #333;
+}
+
+.heading {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #fff;
+  margin: 0 0 1.5rem 0;
+}
+
+.rewardsList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.reward {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #0f0f0f;
+  border-radius: 6px;
+  border: 1px solid #2a2a2a;
+  transition: all 0.2s;
+}
+
+.reward:hover {
+  border-color: #fbbf24;
+  transform: translateY(-2px);
+}
+
+.icon {
+  font-size: 2rem;
+}
+
+.details {
+  flex: 1;
+}
+
+.label {
+  color: #e0e0e0;
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.type {
+  color: #999;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}

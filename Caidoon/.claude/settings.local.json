@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm build:*)",
+      "Bash(pnpm:*)",
+      "Bash(data/README.md)",
+      "Bash(docker build:*)",
+      "Bash(docker run:*)",
+      "Bash(curl:*)",
+      "Bash(cat:*)",
+      "Bash(npx tsc:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

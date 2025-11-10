@@ -1,0 +1,27 @@
+{
+  "name": "@ai-encounters/sdk",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Client SDK for AI Encounters Engine",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf dist"
+  },
+  "keywords": [
+    "ai-encounters",
+    "sdk",
+    "client"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@ai-encounters/core": "workspace:*",
+    "@ai-encounters/validators": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "rimraf": "^5.0.5"
+  }
+}

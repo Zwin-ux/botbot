@@ -1,0 +1,146 @@
+.main {
+  min-height: 100vh;
+  padding: 2rem 0;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.backLink {
+  color: #3b82f6;
+  font-size: 1rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.backLink:hover {
+  color: #2563eb;
+}
+
+.sessionInfo {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.sessionId,
+.playerId {
+  color: #999;
+  font-size: 0.875rem;
+}
+
+.loading {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #999;
+  font-size: 1.25rem;
+}
+
+.errorContainer {
+  max-width: 500px;
+  margin: 4rem auto;
+  background: #1a1a1a;
+  border-radius: 12px;
+  padding: 3rem;
+  border: 1px solid #333;
+  text-align: center;
+}
+
+.errorTitle {
+  font-size: 2rem;
+  color: #f87171;
+  margin: 0 0 1rem 0;
+}
+
+.errorMessage {
+  color: #ccc;
+  margin: 0 0 2rem 0;
+  font-size: 1rem;
+}
+
+.backButton {
+  padding: 0.75rem 1.5rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.backButton:hover {
+  background: #2563eb;
+}
+
+.completedBanner {
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid #4ade80;
+  color: #4ade80;
+  padding: 1rem;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 1.125rem;
+  margin-bottom: 2rem;
+}
+
+.completeSection {
+  background: #1a1a1a;
+  border-radius: 8px;
+  padding: 2rem;
+  border: 1px solid #333;
+  text-align: center;
+}
+
+.completeMessage {
+  color: #e0e0e0;
+  font-size: 1.125rem;
+  margin: 0 0 1.5rem 0;
+}
+
+.completeButton {
+  padding: 1rem 2rem;
+  background: #4ade80;
+  color: #0a0a0a;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.completeButton:hover:not(:disabled) {
+  background: #22c55e;
+}
+
+.completeButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.errorBanner {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid #f87171;
+  color: #f87171;
+  padding: 1rem;
+  border-radius: 8px;
+  text-align: center;
+  margin-top: 2rem;
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@ai-encounters/templates",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Encounter templates for AI Encounters Engine",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf dist"
+  },
+  "keywords": [
+    "ai-encounters",
+    "templates",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@ai-encounters/core": "workspace:*"
+  },
+  "devDependencies": {
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.3"
+  }
+}

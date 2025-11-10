@@ -1,0 +1,1 @@
+{"version":3,"file":"validateSessionStartRequest.d.ts","sourceRoot":"","sources":["validateSessionStartRequest.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,gBAAgB,EAAE,MAAM,SAAS,CAAC;AAE3C,MAAM,WAAW,mBAAmB;IAClC,QAAQ,EAAE,MAAM,CAAC;CAClB;AAUD,wBAAgB,2BAA2B,CAAC,IAAI,EAAE,OAAO,GAAG,gBAAgB,CAAC,mBAAmB,CAAC,CA2BhG"}

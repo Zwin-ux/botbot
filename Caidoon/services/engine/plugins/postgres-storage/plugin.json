@@ -1,0 +1,19 @@
+{
+  "name": "postgres-storage",
+  "version": "1.0.0",
+  "description": "PostgreSQL storage provider plugin for persistent session storage",
+  "author": "AI Encounters",
+  "main": "index.js",
+  "dependencies": [],
+  "permissions": {
+    "events": ["session:*"],
+    "hooks": ["before-create-session", "after-create-session", "before-load-session", "after-load-session"],
+    "storage": true,
+    "network": true
+  },
+  "config": {
+    "connectionString": "postgresql://localhost:5432/aiencounters",
+    "poolSize": 10,
+    "connectionTimeout": 5000
+  }
+}

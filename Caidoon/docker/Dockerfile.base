@@ -1,0 +1,29 @@
+# Base Dockerfile for AI Encounters Engine
+# Provides Node.js runtime, pnpm, and common dependencies
+
+FROM node:20-alpine
+
+# Install pnpm globally
+RUN npm install -g pnpm@8
+
+# Install common system dependencies
+RUN apk add --no-cache \
+    curl \
+    git \
+    python3 \
+    make \
+    g++
+
+# Set working directory
+WORKDIR /app
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+
+# Create pnpm store directory
+RUN mkdir -p /pnpm/store
+
+# Default command (to be overridden by service-specific Dockerfiles)
+CMD ["node"]

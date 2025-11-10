@@ -1,0 +1,51 @@
+# Dockerfile for GMod Sidecar Adapter
+FROM node:20-alpine as base
+
+# Install pnpm globally
+RUN npm install -g pnpm@10
+
+# Install common system dependencies
+RUN apk add --no-cache curl
+
+WORKDIR /app
+
+# Copy workspace configuration
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY tsconfig.base.json ./
+
+# Copy all package.json files for dependency resolution
+COPY packages/core/package.json ./packages/core/
+COPY packages/sdk/package.json ./packages/sdk/
+COPY adapters/gmod-sidecar/package.json ./adapters/gmod-sidecar/
+
+# Copy tsconfig.json files so composite builds work
+COPY packages/core/tsconfig.json ./packages/core/
+COPY packages/sdk/tsconfig.json ./packages/sdk/
+COPY adapters/gmod-sidecar/tsconfig.json ./adapters/gmod-sidecar/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source code
+COPY packages/core ./packages/core
+COPY packages/sdk ./packages/sdk
+COPY adapters/gmod-sidecar ./adapters/gmod-sidecar
+
+# Build packages (build dependencies in order)
+RUN pnpm --filter gmod-sidecar... build
+
+# Verify TypeScript declaration files were generated
+RUN echo "Verifying build artifacts..." && \
+    test -f packages/core/dist/index.d.ts || (echo "ERROR: Core declaration files not generated" && exit 1) && \
+    test -f packages/sdk/dist/index.d.ts || (echo "ERROR: SDK declaration files not generated" && exit 1) && \
+    test -f adapters/gmod-sidecar/dist/index.js || (echo "ERROR: GMod Sidecar build failed" && exit 1) && \
+    echo "Build verification successful!"
+
+# Expose port
+EXPOSE 8788
+
+# Set working directory to gmod-sidecar
+WORKDIR /app/adapters/gmod-sidecar
+
+# Start the service
+CMD ["node", "dist/index.js"]
