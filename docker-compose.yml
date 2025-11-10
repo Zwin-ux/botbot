@@ -1,7 +1,21 @@
+# Docker Compose for local BotBot v2.0 dev environment (Next.js + optional Redis).
 version: '3.8'
-
 services:
   botbot:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - VECTOR_STORE_PATH=/app/data/memory.jsonl
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+  # Legacy services preserved for backwards compatibility
+  botbot-legacy:
     build:
       context: .
       dockerfile: Dockerfile

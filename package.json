@@ -1,42 +1,19 @@
 {
   "name": "botbot",
-  "version": "1.0.0",
-  "description": "A natural language Discord bot for team collaboration and games",
+  "version": "2.0.0",
+  "description": "BotBot 2.0 - Agent core with plugin skills, vector memory, and embeddings",
   "main": "src/index.js",
-  "type": "module",
-  "jest": {
-    "testEnvironment": "node",
-    "testMatch": [
-      "**/test/basic.test.js",
-      "**/test/nlp.test.js"
-    ],
-    "moduleFileExtensions": [
-      "js",
-      "json"
-    ],
-    "transformIgnorePatterns": [
-      "node_modules/(?!(node-fetch)/)"
-    ],
-    "transform": {
-      "^.+\\.js$": "babel-jest"
-    },
-    "setupFilesAfterEnv": [
-      "<rootDir>/test/setup.js"
-    ],
-    "testTimeout": 5000,
-    "detectOpenHandles": true,
-    "forceExit": true,
-    "maxWorkers": 1,
-    "runInBand": true
-  },
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
-    "build": "npm run lint && npm run test:ci",
-    "test": "cross-env NODE_ENV=test jest --coverage",
+    "dev": "next dev",
+    "build": "tsc --noEmit && next build",
+    "start:next": "next start",
+    "test": "jest",
+    "test:watch": "jest --watch",
     "test:ci": "cross-env NODE_ENV=test jest --coverage --watchAll=false --ci",
-    "lint": "eslint . --ext .js",
-    "lint:fix": "eslint . --ext .js --fix",
+    "lint": "eslint src tests --ext .ts,.tsx",
+    "lint:fix": "eslint src tests --ext .ts,.tsx --fix",
+    "type-check": "tsc --noEmit",
     "format": "prettier --write \"**/*.{js,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,json,md}\"",
     "prepare": "is-ci || husky install",
@@ -67,21 +44,30 @@
     "dotenv": "^16.5.0",
     "franc": "^5.0.0",
     "is-ci": "^4.1.0",
+    "next": "^14.0.0",
     "node-cron": "^3.0.3",
     "node-fetch": "^3.3.2",
     "pino": "^8.19.0",
     "pino-pretty": "^10.2.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "sqlite3": "^5.1.7",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@babel/core": "^7.27.1",
     "@babel/preset-env": "^7.27.2",
     "@types/jest": "^29.5.14",
+    "@types/node": "^20.10.0",
+    "@types/react": "^18.2.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
     "babel-jest": "^29.7.0",
     "chai": "^5.2.1",
     "cross-env": "^7.0.3",
     "eslint": "^8.57.0",
+    "eslint-config-next": "^14.0.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.3",
     "husky": "^9.0.11",
@@ -91,7 +77,9 @@
     "nodemon": "^3.1.0",
     "prettier": "^3.2.5",
     "sqlite": "^5.1.1",
-    "supertest": "^6.3.3"
+    "supertest": "^6.3.3",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.3.0"
   },
   "engines": {
     "node": ">=16.17.0"
