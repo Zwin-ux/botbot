@@ -8,7 +8,8 @@
     "testEnvironment": "node",
     "testMatch": [
       "**/test/basic.test.js",
-      "**/test/nlp.test.js"
+      "**/test/nlp.test.js",
+      "**/tests/**/*.test.js"
     ],
     "moduleFileExtensions": [
       "js",
