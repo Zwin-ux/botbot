@@ -73,6 +73,16 @@ web_modules/
 .env.*
 !.env.example
 
+# Local configuration overrides
+*.local
+*.local.*
+
+# Kiro local settings (keep specs but ignore local settings)
+.kiro/settings/
+
+# Claude local settings
+.claude/settings.local.json
+
 # parcel-bundler cache files
 .cache
 .parcel-cache

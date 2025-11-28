@@ -1,6 +1,6 @@
-# 🚀 BotBot Deployment Guide
+# 🚀 BotBot v2 Deployment Guide
 
-This guide covers deploying BotBot Discord bot to various cloud platforms.
+This guide covers deploying BotBot to production environments.
 
 ## 📋 Pre-Deployment Checklist
 
@@ -23,6 +23,7 @@ NODE_ENV=production
 DB_PATH=./data/botbot.db
 LOG_LEVEL=info
 PORT=3000
+OPENAI_API_KEY=sk-your-key  # For LLM features
 ```
 
 ### 3. Bot Permissions
@@ -33,79 +34,86 @@ Your bot needs these Discord permissions:
 - Use Slash Commands (optional)
 - Manage Messages (for games/moderation)
 
-## 🌐 Platform-Specific Deployment
+---
 
-### Vercel
+## 🐳 Docker (Recommended)
+
+Docker is the **primary and recommended** deployment method for BotBot v2.
+
+### Quick Start
+
 ```bash
-# Install Vercel CLI
-npm i -g vercel
+# Build and run with Docker Compose
+docker-compose up -d
 
-# Deploy
-npm run deploy:vercel
+# View logs
+docker-compose logs -f
+
+# Stop
+docker-compose down
 ```
 
-**Configuration**: Uses `vercel.json`
-- ✅ Serverless functions
-- ✅ Automatic scaling
-- ✅ Environment variables via dashboard
+### Manual Docker Build
 
-### Netlify
 ```bash
-# Install Netlify CLI
-npm i -g netlify-cli
+# Build image
+docker build -t botbot:latest .
 
-# Deploy
-npm run deploy:netlify
+# Run container
+docker run -d \
+  --name botbot \
+  -e DISCORD_TOKEN=your_token \
+  -e CLIENT_ID=your_client_id \
+  -v botbot-data:/app/data \
+  botbot:latest
 ```
 
-**Configuration**: Uses `netlify.toml`
-- ✅ Functions support
-- ✅ Continuous deployment
-- ✅ Environment variables via dashboard
+### Docker Compose Configuration
+
+The `docker-compose.yml` provides:
+- ✅ Automatic restarts
+- ✅ Persistent data volume
+- ✅ Environment variable management
+- ✅ Health checks
+
+---
+
+## 🌐 Alternative Platforms (Legacy)
+
+> **Note**: These deployment methods are maintained for backwards compatibility but Docker is preferred.
 
 ### Railway
 ```bash
-# Install Railway CLI
 npm i -g @railway/cli
-
-# Deploy
-npm run deploy:railway
+railway up
 ```
-
 **Configuration**: Uses `railway.json`
-- ✅ Always-on hosting
-- ✅ Database support
-- ✅ Automatic deployments
 
 ### Render
+Connect GitHub repo to Render dashboard. Auto-deploys using `render.yaml`.
+
+### Vercel
 ```bash
-# Connect GitHub repo to Render dashboard
-# Render will auto-deploy using render.yaml
+npm i -g vercel
+vercel --prod
 ```
+**Configuration**: Uses `vercel.json`
+- Best for web interface only
+- Not recommended for persistent bot processes
 
-**Configuration**: Uses `render.yaml`
-- ✅ Free tier available
-- ✅ Persistent storage
-- ✅ Auto-deploy from Git
-
-### Heroku
+### Netlify
 ```bash
-# Install Heroku CLI
-npm i -g heroku
-
-# Create app and deploy
-heroku create your-botbot-app
-git push heroku main
+npm i -g netlify-cli
+netlify deploy --prod
 ```
+**Configuration**: Uses `netlify.toml`
+- Best for web interface only
+- Not recommended for persistent bot processes
 
-**Configuration**: Add `Procfile`:
-```
-web: npm start
-```
+---
 
-## 🔧 Environment Setup
+## 🔧 Local Development
 
-### Local Development
 ```bash
 # Copy environment template
 cp .env.example .env
@@ -115,11 +123,7 @@ cp .env.example .env
 npm run dev
 ```
 
-### Production Environment
-Set these variables in your platform's dashboard:
-- `DISCORD_TOKEN` - Your bot token
-- `CLIENT_ID` - Your Discord application ID
-- `NODE_ENV=production`
+---
 
 ## 🏥 Health Checks
 
@@ -134,22 +138,17 @@ This verifies:
 - ✅ Database configuration
 - ✅ Discord connection (if token provided)
 
-## 🎯 Natural Language Features
+---
 
-BotBot includes these NLP capabilities:
-- **Intent Recognition**: Understands greetings, reminders, help requests
-- **Wake Word Detection**: Responds to "hey bot", "botbot", etc.
-- **Time Parsing**: Processes "in 5 minutes", "tomorrow at 3pm"
-- **Multi-language Support**: English, Spanish, French
-- **Context Awareness**: Maintains conversation state
+## 🔒 Security
 
-## 🎮 Available Features
+- Never commit `.env` files
+- Use environment variables for secrets
+- Regularly rotate Discord tokens
+- Monitor bot permissions
+- The `.dockerignore` excludes sensitive files from builds
 
-- **Reminders**: Natural language reminder setting
-- **Team Games**: Emoji races, trivia, story building
-- **Standups**: Structured team standup meetings
-- **Retrospectives**: Team retrospective facilitation
-- **Help System**: Contextual help and guidance
+---
 
 ## 🐛 Troubleshooting
 
@@ -163,52 +162,12 @@ BotBot includes these NLP capabilities:
 **Database errors:**
 - Check file permissions
 - Verify database path is writable
-- Run database migrations
+- Run database migrations: `npm run db:migrate`
 
-**Memory issues:**
-- Monitor memory usage
-- Consider upgrading plan
-- Check for memory leaks
-
-### Logs and Monitoring
-
-Check platform-specific logs:
-- **Vercel**: Functions tab in dashboard
-- **Netlify**: Functions logs
-- **Railway**: Deployment logs
-- **Render**: Service logs
-
-## 📊 Performance Tips
-
-1. **Database**: Use persistent storage for production
-2. **Memory**: Monitor memory usage and optimize
-3. **Scaling**: Most platforms auto-scale
-4. **Caching**: Bot includes built-in caching
-
-## 🔒 Security
-
-- Never commit `.env` files
-- Use environment variables for secrets
-- Regularly rotate Discord tokens
-- Monitor bot permissions
-
-## 📈 Monitoring
-
-Set up monitoring for:
-- Bot uptime
-- Response times
-- Error rates
-- Memory usage
-- Database performance
-
-## 🎉 Post-Deployment
-
-After successful deployment:
-1. Test bot in Discord server
-2. Verify all features work
-3. Monitor logs for errors
-4. Set up alerts/monitoring
-5. Document any custom configurations
+**Docker issues:**
+- Check container logs: `docker logs botbot`
+- Verify volume mounts
+- Ensure ports are not in use
 
 ---
 

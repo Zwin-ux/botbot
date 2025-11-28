@@ -1,20 +1,72 @@
+# Dependencies
 node_modules
 npm-debug.log
+
+# Environment files (secrets)
 .env
 .env.local
 .env.*.local
+
+# Git
 .git
 .gitignore
+
+# Documentation (not needed in container)
 README.md
+DEPLOYMENT.md
+DEPLOYMENT_READY.md
+RENDER_DEPLOYMENT.md
+*.md
+
+# Docker files (not needed in container)
 Dockerfile
+Dockerfile.backup
 .dockerignore
+docker-compose.yml
+
+# Test files
 coverage
 .nyc_output
 test
 tests
 *.test.js
+*.test.ts
+jest.config.js
+jest-output.json
+
+# IDE and editor files
 .vscode
 .idea
 *.log
 .DS_Store
 Thumbs.db
+
+# Kiro specs and steering (internal documentation)
+.kiro
+
+# Claude settings
+.claude
+
+# GitHub workflows
+.github
+
+# Husky git hooks
+.husky
+
+# Infrastructure configs (legacy)
+infra
+netlify.toml
+vercel.json
+railway.json
+render.yaml
+Procfile
+
+# TypeScript build info
+tsconfig.tsbuildinfo
+
+# Scripts (not needed in production)
+scripts
+
+# Backup files
+backups
+*.backup
