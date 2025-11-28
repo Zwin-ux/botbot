@@ -4,6 +4,32 @@
   "description": "BotBot 2.0 - Platform-agnostic personal companion with plugin skills, vector memory, and embeddings",
   "main": "src/index.js",
   "type": "module",
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/test/basic.test.js",
+      "**/test/nlp.test.js",
+      "**/tests/**/*.test.js"
+    ],
+    "moduleFileExtensions": [
+      "js",
+      "json"
+    ],
+    "transformIgnorePatterns": [
+      "node_modules/(?!(node-fetch)/)"
+    ],
+    "transform": {
+      "^.+\\.js$": "babel-jest"
+    },
+    "setupFilesAfterEnv": [
+      "<rootDir>/test/setup.js"
+    ],
+    "testTimeout": 5000,
+    "detectOpenHandles": true,
+    "forceExit": true,
+    "maxWorkers": 1,
+    "runInBand": true
+  },
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
