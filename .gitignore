@@ -77,11 +77,14 @@ web_modules/
 *.local
 *.local.*
 
-# Kiro local settings (keep specs but ignore local settings)
-.kiro/settings/
+# Kiro (internal development tooling - not for public repo)
+.kiro/
 
-# Claude local settings
-.claude/settings.local.json
+# Claude (internal development tooling - not for public repo)
+.claude/
+
+# GitHub workflows (optional - remove if you want CI/CD public)
+# .github/
 
 # parcel-bundler cache files
 .cache
