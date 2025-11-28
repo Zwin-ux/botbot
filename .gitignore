@@ -83,8 +83,26 @@ web_modules/
 # Claude (internal development tooling - not for public repo)
 .claude/
 
-# GitHub workflows (optional - remove if you want CI/CD public)
-# .github/
+# GitHub workflows (internal)
+.github/
+
+# Legacy deployment configs (Docker is primary)
+infra/
+netlify.toml
+railway.json
+render.yaml
+vercel.json
+Procfile
+DEPLOYMENT_READY.md
+RENDER_DEPLOYMENT.md
+Dockerfile.backup
+
+# Test output
+jest-output.json
+
+# Database files
+*.db
+!data/*.db
 
 # parcel-bundler cache files
 .cache
