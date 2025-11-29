@@ -16,7 +16,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Set environment to production to skip dev scripts
-ENV NODE_ENV=production
+# ENV NODE_ENV=production
 ENV CI=true
 
 # Install dependencies and rebuild native modules
@@ -40,6 +40,8 @@ FROM node:18-alpine AS production
 RUN apk add --no-cache \
     dumb-init \
     sqlite
+
+ENV NODE_ENV=production
 
 # Set working directory
 WORKDIR /app
