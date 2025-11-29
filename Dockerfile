@@ -20,8 +20,10 @@ ENV NODE_ENV=production
 ENV CI=true
 
 # Install dependencies and rebuild native modules
-RUN npm ci --omit=dev && \
-    npm rebuild sqlite3 && \
+# Install dependencies (including dev for build)
+RUN npm ci && \
+    npm run web:build && \
+    npm prune --production && \
     npm cache clean --force
 
 # Copy source code
@@ -47,6 +49,8 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
 
 # Copy user from builder
 COPY --from=builder /etc/passwd /etc/passwd
@@ -70,4 +74,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 ENTRYPOINT ["dumb-init", "--"]
 
 # Start the application
-CMD ["node", "src/index.js"]
+# Start the application (Both Web and Bot)
+CMD ["node", "scripts/start.js"]
