@@ -20,14 +20,14 @@ ENV NODE_ENV=production
 ENV CI=true
 
 # Install dependencies and rebuild native modules
+# Copy source code
+COPY . .
+
 # Install dependencies (including dev for build)
 RUN npm ci && \
     npm run web:build && \
     npm prune --production && \
     npm cache clean --force
-
-# Copy source code
-COPY . .
 
 # Create non-root user
 RUN addgroup -g 1001 -S botbot && \
