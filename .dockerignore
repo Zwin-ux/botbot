@@ -64,8 +64,7 @@ Procfile
 # TypeScript build info
 tsconfig.tsbuildinfo
 
-# Scripts (not needed in production)
-scripts
+
 
 # Backup files
 backups
