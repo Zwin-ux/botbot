@@ -88,11 +88,11 @@ web_modules/
 
 # Legacy deployment configs (Docker is primary)
 infra/
-netlify.toml
-railway.json
-render.yaml
-vercel.json
-Procfile
+# netlify.toml
+# railway.json
+# render.yaml
+# vercel.json
+# Procfile
 DEPLOYMENT_READY.md
 RENDER_DEPLOYMENT.md
 Dockerfile.backup

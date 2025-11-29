@@ -1,174 +1,42 @@
-# 🚀 BotBot v2 Deployment Guide
+# Deployment Guide (Railway)
 
-This guide covers deploying BotBot to production environments.
+This repository contains two distinct applications:
+1.  **BotBot (Discord Bot)**: Runs on Node.js.
+2.  **Marketing Site (Web App)**: Runs on Next.js.
 
-## 📋 Pre-Deployment Checklist
+To deploy "everything" to Railway, you should create **two separate services** from this same repository.
 
-### 1. Discord Bot Setup
-- [ ] Create Discord application at https://discord.com/developers/applications
-- [ ] Create bot user and copy the token
-- [ ] Copy the Client ID from the application
-- [ ] Invite bot to your server with appropriate permissions
+## 1. Deploying the Bot
 
-### 2. Environment Variables
-Set these environment variables in your deployment platform:
+The bot uses the `Dockerfile` in the root directory.
 
-```bash
-# Required
-DISCORD_TOKEN=your_discord_bot_token_here
-CLIENT_ID=your_discord_client_id_here
+1.  **New Service** -> **GitHub Repo** -> Select `botbot`.
+2.  Railway will automatically detect the `Dockerfile`.
+3.  **Variables**: Add your environment variables:
+    *   `DISCORD_TOKEN`
+    *   `OPENAI_API_KEY`
+    *   (Any other bot secrets)
+4.  **Deploy**.
 
-# Optional
-NODE_ENV=production
-DB_PATH=./data/botbot.db
-LOG_LEVEL=info
-PORT=3000
-OPENAI_API_KEY=sk-your-key  # For LLM features
-```
+## 2. Deploying the Web App
 
-### 3. Bot Permissions
-Your bot needs these Discord permissions:
-- Send Messages
-- Read Message History
-- Add Reactions
-- Use Slash Commands (optional)
-- Manage Messages (for games/moderation)
+The web app uses Next.js and should be deployed using Nixpacks (Railway's default builder).
 
----
+1.  **New Service** -> **GitHub Repo** -> Select `botbot`.
+2.  **Settings** -> **Build & Deploy**:
+    *   **Builder**: Select `Nixpacks`.
+    *   **Build Command**: `npm run web:build`
+    *   **Start Command**: `npm run web:start`
+3.  **Variables**:
+    *   `NEXT_PUBLIC_DISCORD_INVITE_URL`
+    *   `NEXT_PUBLIC_SUPPORT_SERVER_URL`
+4.  **Networking**:
+    *   Generate a domain (e.g., `botbot-web.up.railway.app`).
+5.  **Deploy**.
 
-## 🐳 Docker (Recommended)
+## Directory Structure
 
-Docker is the **primary and recommended** deployment method for BotBot v2.
-
-### Quick Start
-
-```bash
-# Build and run with Docker Compose
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop
-docker-compose down
-```
-
-### Manual Docker Build
-
-```bash
-# Build image
-docker build -t botbot:latest .
-
-# Run container
-docker run -d \
-  --name botbot \
-  -e DISCORD_TOKEN=your_token \
-  -e CLIENT_ID=your_client_id \
-  -v botbot-data:/app/data \
-  botbot:latest
-```
-
-### Docker Compose Configuration
-
-The `docker-compose.yml` provides:
-- ✅ Automatic restarts
-- ✅ Persistent data volume
-- ✅ Environment variable management
-- ✅ Health checks
-
----
-
-## 🌐 Alternative Platforms (Legacy)
-
-> **Note**: These deployment methods are maintained for backwards compatibility but Docker is preferred.
-
-### Railway
-```bash
-npm i -g @railway/cli
-railway up
-```
-**Configuration**: Uses `railway.json`
-
-### Render
-Connect GitHub repo to Render dashboard. Auto-deploys using `render.yaml`.
-
-### Vercel
-```bash
-npm i -g vercel
-vercel --prod
-```
-**Configuration**: Uses `vercel.json`
-- Best for web interface only
-- Not recommended for persistent bot processes
-
-### Netlify
-```bash
-npm i -g netlify-cli
-netlify deploy --prod
-```
-**Configuration**: Uses `netlify.toml`
-- Best for web interface only
-- Not recommended for persistent bot processes
-
----
-
-## 🔧 Local Development
-
-```bash
-# Copy environment template
-cp .env.example .env
-
-# Edit .env with your values
-# Then run:
-npm run dev
-```
-
----
-
-## 🏥 Health Checks
-
-Run health check before deployment:
-```bash
-npm run health-check
-```
-
-This verifies:
-- ✅ Environment variables
-- ✅ Critical files exist
-- ✅ Database configuration
-- ✅ Discord connection (if token provided)
-
----
-
-## 🔒 Security
-
-- Never commit `.env` files
-- Use environment variables for secrets
-- Regularly rotate Discord tokens
-- Monitor bot permissions
-- The `.dockerignore` excludes sensitive files from builds
-
----
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Bot not responding:**
-- Check Discord token is correct
-- Verify bot has message permissions
-- Ensure bot is online in Discord
-
-**Database errors:**
-- Check file permissions
-- Verify database path is writable
-- Run database migrations: `npm run db:migrate`
-
-**Docker issues:**
-- Check container logs: `docker logs botbot`
-- Verify volume mounts
-- Ensure ports are not in use
-
----
-
-**Need help?** Check the logs, run health checks, and verify environment variables!
+*   `src/index.js`: Entry point for the Bot.
+*   `src/pages/`: Entry point for the Web App.
+*   `Dockerfile`: Configuration for the Bot container.
+*   `package.json`: Scripts for both (`start` for bot, `web:start` for web).

@@ -1,0 +1,97 @@
+.hero {
+    padding: 8rem 1.5rem;
+    text-align: center;
+    background: radial-gradient(circle at center, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Art Deco / Circuitry decorative lines */
+.hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 1px;
+    height: 100%;
+    background: linear-gradient(to bottom, transparent, var(--border-color), transparent);
+    opacity: 0.3;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+}
+
+.logoWrapper {
+    margin-bottom: 2.5rem;
+    animation: float 6s ease-in-out infinite;
+    filter: drop-shadow(0 0 20px rgba(16, 185, 129, 0.2));
+    /* Green glow from logo */
+}
+
+.logo {
+    border-radius: 50%;
+    border: 2px solid var(--accent-gold);
+}
+
+.title {
+    font-size: 4rem;
+    line-height: 1.1;
+    font-weight: 800;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.03em;
+    color: var(--text-primary);
+    text-transform: uppercase;
+}
+
+.highlight {
+    color: var(--accent-gold);
+    text-shadow: 0 0 30px rgba(212, 175, 55, 0.3);
+}
+
+.subtitle {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    margin-bottom: 3rem;
+    max-width: 600px;
+    line-height: 1.7;
+    font-weight: 400;
+}
+
+.actions {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+@keyframes float {
+    0% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+
+    100% {
+        transform: translateY(0px);
+    }
+}
+
+@media (max-width: 640px) {
+    .title {
+        font-size: 2.5rem;
+    }
+
+    .hero {
+        padding: 5rem 1rem;
+    }
+}

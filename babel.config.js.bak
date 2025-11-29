@@ -1,0 +1,9 @@
+const isTest = process.env.NODE_ENV === 'test';
+
+export default {
+  presets: [
+    isTest
+      ? ["@babel/preset-env", { targets: { node: "current" } }]
+      : "next/babel",
+  ],
+};
