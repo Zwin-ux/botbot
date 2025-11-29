@@ -5,8 +5,8 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
+    "start": "tsx src/main.ts",
+    "dev": "tsx watch src/main.ts",
     "build": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",

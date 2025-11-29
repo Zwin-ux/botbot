@@ -2,7 +2,7 @@ import Head from 'next/head';
 import Hero from '../components/Hero';
 import HowItWorks from '../components/HowItWorks';
 import Preview from '../components/Preview';
-import UseCases from '../components/UseCases';
+import Features from '../components/Features';
 import Footer from '../components/Footer';
 
 export default function Home() {
@@ -16,7 +16,7 @@ export default function Home() {
                 <Hero />
                 <HowItWorks />
                 <Preview />
-                <UseCases />
+                <Features />
                 <Footer />
             </main>
         </>

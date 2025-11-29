@@ -6,6 +6,8 @@ import { CompanionLLM } from '../src/llm/companion-llm';
 import { DebugLogger } from '../src/llm/debug';
 import { SMSPlatform } from '../src/platforms/sms';
 import { CompanionControl } from '../src/features/companion-control';
+import { JsonlVectorStore } from '../src/memory/vector-store';
+import { MockEmbeddings } from '../src/llm/embeddings';
 
 async function main() {
     console.log('--- Starting Core Verification ---');
@@ -18,11 +20,14 @@ async function main() {
     const debugLogger = new DebugLogger();
     debugLogger.toggle(); // Enable debug logging
 
+    const vectorStore = new JsonlVectorStore(new MockEmbeddings());
+
     const llm = new CompanionLLM(
         profileManager,
         intentRouter,
         personaManager,
         conversationManager,
+        vectorStore,
         debugLogger
     );
 
@@ -38,6 +43,19 @@ async function main() {
 
     // Verify Persona Switch (should switch to Engineer)
     console.log(`Current Persona: ${personaManager.getCurrentPersona().id} (Expected: engineer)`);
+
+    // 2.5 Test RAG (Inject a memory and search)
+    console.log('\n[System] Injecting memory: "User loves pizza."');
+    await vectorStore.upsert({
+        id: 'test-mem-1',
+        text: 'User loves pizza.',
+        metadata: { userId, intent: 'fact' }
+    });
+
+    console.log('[Discord] User: "What is my favorite food?"');
+    // In a real LLM, this would use the context. For mock, we check logs/debug.
+    const ragResponse = await llm.generateResponse(userId, 'What is my favorite food?', 'discord');
+    console.log(`[Bot]: ${ragResponse.text}`);
 
     // 3. Simulate SMS (Continuity)
     console.log('\n[SMS] User: "Thanks, I gotta go."');
